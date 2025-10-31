@@ -1,3 +1,4 @@
+"use client"
 import React, { useState } from 'react'
 import { Download, ChevronLeft, ChevronRight } from 'lucide-react'
 

@@ -32,7 +32,7 @@ export default function TransactionQueuePage() {
           },
         });
 
-        console.log("✅ Transaction Queue Data:", res.data);
+        console.log("Transaction Queue Data:", res.data);
 
         const total = res.data?.data?.total_statistic?.totalStats || {};
         const routing = res.data?.data?.total_statistic?.routingKeys || {};
@@ -70,17 +70,7 @@ export default function TransactionQueuePage() {
           <MetricCard title="Cancelled" value={stats.cancelled.toString()} iconSrc="/images/icons/Last.svg" />
         </div>
 
-        {/* === Search Bar === */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="border border-gray-300 rounded-lg px-2 py-1"
-            />
-          </div>
-        </div>
+       
 
         {/* === Data Table === */}
         <TransactionQueueTable />

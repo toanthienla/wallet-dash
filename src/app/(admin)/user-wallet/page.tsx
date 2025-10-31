@@ -38,7 +38,7 @@ export default function UserWalletPage() {
           }
         );
 
-        console.log("🔥 Dashboard result:", response.data);
+        console.log(" Dashboard result:", response.data);
         const d = response.data?.data || {};
 
         setStats({
