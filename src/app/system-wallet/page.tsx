@@ -25,7 +25,7 @@ export default function SystemWalletPage() {
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🧠 Fetch API bằng axios (có cookie)
+  //  Fetch API bằng axios (có cookie)
   async function fetchSystemWallets() {
     try {
       const res = await axiosClient.get(
@@ -39,7 +39,7 @@ export default function SystemWalletPage() {
 
       return res.data;
     } catch (error) {
-      console.error("❌ Fetch system wallets failed:", error);
+      console.error(" Fetch system wallets failed:", error);
       return null;
     }
   }
@@ -88,7 +88,7 @@ export default function SystemWalletPage() {
         />
       </div>
 
-      {/* ✅ Truyền đúng prop cho bảng */}
+      {/*  Truyền đúng prop cho bảng */}
       <SystemWalletTable wallets={main_wallets} />
     </div>
   );

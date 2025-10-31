@@ -21,7 +21,7 @@ import {
 import { API_URL } from "@/utils/constants";
 import axiosClient from "@/utils/axiosClient";
 
-// 🧩 Types
+// Types
 interface WalletAsset {
   name: string;
   amount: string;
@@ -42,7 +42,7 @@ interface WalletDetail {
 }
 
 export default function WalletDetailPage() {
-  // ⚡ TẠM THỜI FIX ĐỊA CHỈ VÍ ĐỂ TEST
+  
   // const params = useParams();
   // const walletAddress = params.id as string;
   const walletAddress = "0xe39a611233c237ea006E5406dc1DEAce1ED38368";
@@ -97,7 +97,7 @@ export default function WalletDetailPage() {
           chartData,
         });
       } catch (err) {
-        console.error("❌ Error fetching wallet:", err);
+        console.error(" Error fetching wallet:", err);
         setWallet(null);
       } finally {
         setLoading(false);

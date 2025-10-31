@@ -1,3 +1,4 @@
+"use client"
 import React from 'react'
 import { Users, PlusCircle, Settings, Download } from 'lucide-react'
 
