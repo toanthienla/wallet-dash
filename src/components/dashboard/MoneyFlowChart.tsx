@@ -8,23 +8,17 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts"
-import { RefreshCw, AlertCircle } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { API_URL } from "@/utils/constants"
-import axiosClient from "@/utils/axiosClient"
-
-interface ChartDataPoint {
-  time: string
-  value: number
-}
+import axiosClient from "@/utils/axiosClient";
 
 export default function MoneyFlowChart() {
   const tabs = ["24H", "7 Days", "30 Days", "365 Days"]
   const [active, setActive] = useState("24H")
   const [seed, setSeed] = useState(0)
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([])
+  const [chartData, setChartData] = useState<{ time: string; value: number }[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [retryCount, setRetryCount] = useState(0)
 
   const fetchExternalWalletData = async () => {
     try {
@@ -33,23 +27,18 @@ export default function MoneyFlowChart() {
 
       const url = `${API_URL}/wallets/dashboard/external-wallet-total-assets`
       console.log("📡 Fetching external wallet data from:", url)
-      console.log("🔗 Origin:", window.location.origin)
 
-      // Call API with axios instance (already configured with auth headers)
+      // 🔥 Gọi API bằng axios instance (đã có base config)
       const res = await axiosClient.get(url)
 
       const json = res.data
-      console.log("✅ Fetched data successfully:", {
-        success: json?.success,
-        dataLength: json?.data?.[0]?.values?.length,
-        labelsLength: json?.labels?.length,
-      })
+      console.log("✅ Fetched data:", json)
 
       if (json?.success && json?.data?.[0]?.values && json?.labels) {
         const labels: string[] = json.labels
         const values: number[] = json.data[0].values
 
-        const formatted: ChartDataPoint[] = labels.map((t, i) => ({
+        const formatted = labels.map((t, i) => ({
           time: new Date(t).toLocaleString("en-GB", {
             day: "2-digit",
             month: "short",
@@ -60,58 +49,23 @@ export default function MoneyFlowChart() {
         }))
 
         setChartData(formatted)
-        setRetryCount(0) // Reset retry count on success
       } else {
-        throw new Error(
-          `Unexpected response format: ${JSON.stringify({
-            hasSuccess: !!json?.success,
-            hasData: !!json?.data?.[0]?.values,
-            hasLabels: !!json?.labels,
-          })}`
-        )
+        throw new Error("Unexpected response format")
       }
     } catch (err: any) {
-      console.error("❌ Error fetching data:", {
-        message: err.message,
-        code: err.code,
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-      })
-
-      // Build user-friendly error message
-      let errorMessage = "Failed to load wallet data"
-
-      if (err.response?.status === 502) {
-        errorMessage = "Gateway error - the server is temporarily unavailable. Retrying..."
-      } else if (err.response?.status === 503) {
-        errorMessage = "Service temporarily unavailable. Please try again shortly."
-      } else if (err.response?.status === 401 || err.response?.status === 403) {
-        errorMessage = "Authentication failed. Please log in again."
-      } else if (err.code === "ECONNABORTED") {
-        errorMessage = "Request timeout. The server took too long to respond."
-      } else if (err.code === "ERR_NETWORK") {
-        errorMessage = "Network error. Please check your connection."
-      } else if (err.message === "Unexpected response format") {
-        errorMessage = err.message
-      }
-
-      setError(errorMessage)
+      console.error("❌ Error fetching data:", err)
+      setError(err.message || "Fetch failed")
     } finally {
       setLoading(false)
     }
   }
 
-  // Fetch when component mounts or refresh is triggered
+  // 🪄 Fetch khi component mount hoặc refresh
   useEffect(() => {
     fetchExternalWalletData()
   }, [seed])
 
   const data = useMemo(() => chartData, [chartData])
-
-  const handleRetry = () => {
-    setRetryCount((c) => c + 1)
-    setSeed((s) => s + 1)
-  }
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
@@ -137,9 +91,9 @@ export default function MoneyFlowChart() {
             ))}
           </div>
           <button
-            onClick={handleRetry}
+            onClick={() => setSeed((s) => s + 1)}
             disabled={loading}
-            className="flex items-center space-x-1 text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 px-3 py-1.5 rounded-md text-xs font-medium transition"
+            className="flex items-center space-x-1 text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-md text-xs font-medium"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             <span>{loading ? "Loading..." : "Refresh"}</span>
@@ -147,32 +101,11 @@ export default function MoneyFlowChart() {
         </div>
       </div>
 
-      {/* Error Alert */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
-          <AlertCircle size={16} className="text-red-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-xs text-red-700 font-medium">{error}</p>
-            {retryCount > 0 && (
-              <p className="text-xs text-red-600 mt-1">Retry attempt: {retryCount}</p>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Chart */}
       <div className="h-72">
-        {error && chartData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <AlertCircle size={32} className="text-red-400 mb-2" />
-            <p className="text-sm font-medium">{error}</p>
-            <button
-              onClick={handleRetry}
-              disabled={loading}
-              className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-md transition"
-            >
-              {loading ? "Retrying..." : "Retry"}
-            </button>
+        {error ? (
+          <div className="flex items-center justify-center h-full text-red-500 text-sm">
+            {error}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
