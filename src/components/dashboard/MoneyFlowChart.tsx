@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useMemo } from "react"
 import {
   AreaChart,
@@ -29,7 +31,7 @@ export default function MoneyFlowChart() {
       console.log("📡 Fetching external wallet data from:", url)
 
       // 🔥 Gọi API bằng axios instance (đã có base config)
-      const res = await axiosClient.get(url, { withCredentials: true })
+      const res = await axiosClient.get(url)
 
       const json = res.data
       console.log("✅ Fetched data:", json)
