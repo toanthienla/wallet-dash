@@ -29,7 +29,9 @@ export default function MoneyFlowChart() {
       console.log("📡 Fetching external wallet data from:", url)
 
       // 🔥 Gọi API bằng axios instance (đã có base config)
-      const res = await axiosClient.get(url)
+      const res = await axiosClient.get(url, {
+        headers: { "User-Agent": "PostmanRuntime/7.37.3" }
+      })
 
       const json = res.data
       console.log("✅ Fetched data:", json)
