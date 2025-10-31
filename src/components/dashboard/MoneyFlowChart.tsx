@@ -1,4 +1,3 @@
-"use client"
 import React, { useState, useEffect, useMemo } from "react"
 import {
   AreaChart,
@@ -29,8 +28,8 @@ export default function MoneyFlowChart() {
       const url = `${API_URL}/wallets/dashboard/external-wallet-total-assets`
       console.log("📡 Fetching external wallet data from:", url)
 
-      // Gọi API bằng axios instance (đã có base config)
-      const res = await axiosClient.get(url, { withCredentials: true })
+      // 🔥 Gọi API bằng axios instance (đã có base config)
+      const res = await axiosClient.get(url)
 
       const json = res.data
       console.log("✅ Fetched data:", json)
@@ -54,14 +53,14 @@ export default function MoneyFlowChart() {
         throw new Error("Unexpected response format")
       }
     } catch (err: any) {
-      console.error("Error fetching data:", err)
+      console.error("❌ Error fetching data:", err)
       setError(err.message || "Fetch failed")
     } finally {
       setLoading(false)
     }
   }
 
-  //  Fetch khi component mount hoặc refresh
+  // 🪄 Fetch khi component mount hoặc refresh
   useEffect(() => {
     fetchExternalWalletData()
   }, [seed])
