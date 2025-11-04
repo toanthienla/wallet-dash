@@ -117,42 +117,56 @@ export default function SystemWalletTable({ wallets = [] }: Props) {
         </table>
       </div>
 
-      {/* Pagination */}
-      {wallets.length > 10 && (
-        <div className="flex items-center justify-between mt-6">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm"
-          >
-            <span>←</span>
-            <span>Previous</span>
-          </button>
+            {/* Pagination — luôn hiển thị, kể cả khi chỉ có 1 trang */}
+      <div className="flex items-center justify-between mt-6">
+        {/* Previous */}
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm border transition ${
+            page === 1
+              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+              : "text-gray-700 border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          <span>←</span>
+          <span>Previous</span>
+        </button>
 
-          <div className="flex items-center space-x-1">
-            {Array.from({ length: pages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setPage(i + 1)}
-                className={`w-8 h-8 rounded-full text-sm font-medium ${
-                  page === i + 1
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => setPage((p) => Math.min(pages, p + 1))}
-            className="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm"
-          >
-            <span>Next</span>
-            <span>→</span>
-          </button>
+        {/* Page numbers */}
+        <div className="flex items-center space-x-1">
+          {Array.from({ length: pages || 1 }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i + 1)}
+              disabled={page === i + 1}
+              className={`w-8 h-8 rounded-full text-sm font-medium transition ${
+                page === i + 1
+                  ? "bg-blue-600 text-white cursor-default"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
         </div>
-      )}
+
+        {/* Next */}
+        <button
+          onClick={() => setPage((p) => Math.min(pages, p + 1))}
+          disabled={page === pages}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm border transition ${
+            page === pages
+              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+              : "text-gray-700 border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          <span>Next</span>
+          <span>→</span>
+        </button>
+      </div>
+
+      
     </div>
   );
 }

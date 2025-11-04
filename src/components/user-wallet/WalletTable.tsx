@@ -90,21 +90,15 @@ export default function WalletTable() {
           <tbody className="text-gray-700">
             {visible.map((r, i) => (
               <tr key={i} className="border-b hover:bg-gray-50 transition">
-                <td className="py-4 pr-6 font-mono text-xs text-gray-500">
-                  {r.id}
-                </td>
+                <td className="py-4 pr-6 font-mono text-xs text-gray-500">{r.id}</td>
                 <td className="py-4 pr-6">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
                       {r.initials}
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-gray-800">
-                        {r.name}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        123123123123123
-                      </div>
+                      <div className="text-sm font-medium text-gray-800">{r.name}</div>
+                      <div className="text-xs text-gray-400">123123123123123</div>
                     </div>
                   </div>
                 </td>
@@ -126,44 +120,53 @@ export default function WalletTable() {
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination — luôn hiển thị Previous / Next / Page */}
       <div className="flex flex-col md:flex-row items-center justify-between mt-5 gap-3">
-        {/* Left side: Previous */}
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="flex items-center space-x-1 px-4 py-2 rounded-full border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            ← <span>Previous</span>
-          </button>
-        </div>
+        {/* Previous */}
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${
+            page === 1
+              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+              : "text-gray-600 border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          ← <span>Previous</span>
+        </button>
 
-        {/* Center: Page numbers */}
+        {/* Page numbers */}
         <div className="flex items-center space-x-1">
-          {[1, 2, 3, 8, 9, 10].map((num) => (
-            <button
-              key={num}
-              onClick={() => setPage(num)}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-sm ${
-                page === num
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              {num}
-            </button>
-          ))}
+          {Array.from({ length: pages || 1 }).map((_, i) => {
+            const num = i + 1
+            return (
+              <button
+                key={num}
+                onClick={() => setPage(num)}
+                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${
+                  page === num
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {num}
+              </button>
+            )
+          })}
         </div>
 
-        {/* Right side: Next */}
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setPage((p) => Math.min(pages, p + 1))}
-            className="flex items-center space-x-1 px-4 py-2 rounded-full border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            <span>Next</span> →
-          </button>
-        </div>
+        {/* Next */}
+        <button
+          onClick={() => setPage((p) => Math.min(pages, p + 1))}
+          disabled={page === pages}
+          className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${
+            page === pages
+              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+              : "text-gray-600 border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          <span>Next</span> →
+        </button>
       </div>
     </div>
   )
