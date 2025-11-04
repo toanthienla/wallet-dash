@@ -618,32 +618,32 @@ export default function TransactionTracePage() {
                 </table>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between mt-6">
-                <button className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                  ← Previous
-                </button>
+            {/* Pagination — luôn hiển thị kể cả chỉ có 1 trang */}
+<div className="flex items-center justify-between mt-6">
+  {/* Previous */}
+  <button
+    disabled
+    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
+  >
+    ← Previous
+  </button>
 
-                <div className="flex items-center gap-2">
-                  <button className="w-8 h-8 rounded-lg bg-blue-600 text-white text-sm font-medium">
-                    1
-                  </button>
-                  <button className="w-8 h-8 rounded-lg text-gray-600 text-sm font-medium">
-                    2
-                  </button>
-                  <span className="text-gray-400 text-sm">…</span>
-                  <button className="w-8 h-8 rounded-lg text-gray-600 text-sm font-medium">
-                    9
-                  </button>
-                  <button className="w-8 h-8 rounded-lg text-gray-600 text-sm font-medium">
-                    10
-                  </button>
-                </div>
+  {/* Page numbers */}
+  <div className="flex items-center gap-2">
+    <button className="w-8 h-8 rounded-lg bg-blue-600 text-white text-sm font-medium">
+      1
+    </button>
+  </div>
 
-                <button className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                  Next →
-                </button>
-              </div>
+  {/* Next */}
+  <button
+    disabled
+    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
+  >
+    Next →
+  </button>
+</div>
+
             </section>
           </main>
         </div>

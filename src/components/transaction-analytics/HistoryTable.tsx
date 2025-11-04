@@ -15,23 +15,21 @@ type Row = {
   status: "Processing" | "Completed" | "Failed";
 };
 
-// ✅ Dùng axios thay fetch
 async function fetchTransactions(page = 1): Promise<Row[]> {
   try {
     const res = await axiosClient.get(
-      `${API_URL}/transaction/dashboard/0xe39a611233c237ea006E5406dc1DEAce1ED38368`,
+      `${API_URL}/transaction/dashboard/list`,
       {
         params: { page, take: 10 },
-        withCredentials: true, // 👈 gửi cookie/token theo session
+        withCredentials: true, 
       }
     );
 
     const data = res.data;
 
-    // ✅ Map dữ liệu API → format Row
     const rows: Row[] = (data?.data?.transactions || []).map((tx: any) => ({
       id: String(tx.id),
-      // ✅ FIX hydration: dùng ISO string (SSR và client giống nhau)
+      
       datetime: new Date(tx.date_created).toISOString(),
       user: tx.user_id ?? tx.user_created ?? "unknown",
       type:
@@ -41,9 +39,9 @@ async function fetchTransactions(page = 1): Promise<Row[]> {
             ? "Withdraw"
             : "Redeem",
       amount: tx.amount,
-      // ✅ FIX 1: Asset Type — dùng currency_data thay vì asset_type
+      
       asset: tx.currency_data?.name?.toUpperCase() || "Unknown",
-      // ✅ FIX 2: Status — map đúng với dữ liệu thật (success/processing/failed)
+      
       status:
         tx.transaction_status === "success"
           ? "Completed"
@@ -142,7 +140,7 @@ export default function HistoryTable() {
             <tbody className="text-gray-700">
               {visible.map((r, idx) => (
                 <tr key={r.id + idx} className="border-b hover:bg-gray-50">
-                  {/* ✅ FIX hydration: render datetime bằng formatter client-side */}
+                
                   <td className="py-5 px-6 text-sm text-gray-600">
                     {new Intl.DateTimeFormat("en-GB", {
                       dateStyle: "short",
@@ -185,23 +183,55 @@ export default function HistoryTable() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-4">
+            {/* Pagination — luôn hiển thị kể cả chỉ có 1 trang */}
+      <div className="flex items-center justify-between mt-6">
+        {/* Previous */}
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
-          className="flex items-center gap-2 px-4 py-2 rounded-md border border-gray-200"
+          disabled={page === 1}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${
+            page === 1
+              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+              : "text-gray-700 border-gray-200 hover:bg-gray-50"
+          }`}
         >
           <span>←</span>
           <span>Previous</span>
         </button>
 
+        {/* Page numbers */}
+        <div className="flex items-center space-x-1">
+          {Array.from({ length: 1 }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i + 1)}
+              disabled
+              className={`w-8 h-8 rounded-full text-sm font-medium transition ${
+                page === i + 1
+                  ? "bg-blue-600 text-white cursor-default"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+
+        {/* Next */}
         <button
           onClick={() => setPage((p) => p + 1)}
-          className="flex items-center gap-2 px-4 py-2 rounded-md border border-gray-200"
+          disabled={rows.length < perPage}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${
+            rows.length < perPage
+              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+              : "text-gray-700 border-gray-200 hover:bg-gray-50"
+          }`}
         >
           <span>Next</span>
           <span>→</span>
         </button>
       </div>
+
     </div>
   );
 }
