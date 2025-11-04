@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useState } from "react"
 import { API_URL } from "@/utils/constants"
-import axiosClient from "@/utils/axiosClient";
+import axiosClient from "@/utils/axiosClient"
 import AppHeader from "@/layout/AppHeader"
 import AppSidebar from "@/layout/AppSidebar"
 import StatCard from "./StatCard"
@@ -10,11 +10,26 @@ import SubWalletTable from "./SubWalletTable"
 import Image from "next/image"
 
 function SystemWalletPanel() {
-  const wallets = [
-    { name: "Main Deposit Wallet", amount: "$15.7B", status: "Normal", percent: 20, threshold: "$1B - $5B" },
-    { name: "Withdraw Wallet", amount: "$892B", status: "Warning", percent: 50, threshold: "$1B - $5B" },
-    { name: "Cold Storage", amount: "$24.7B", status: "Stable", percent: 90, threshold: "$1B - $5B" },
-  ]
+  const [wallets, setWallets] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchWallets = async () => {
+      try {
+        const res = await axiosClient.get(`${API_URL}/platform-config/dashboard/main-wallets`, {
+          withCredentials: true,
+        })
+        const data = res.data?.data?.main_wallets || []
+        setWallets(data)
+      } catch (err: any) {
+        console.error(" Error fetching main wallets:", err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchWallets()
+  }, [])
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
@@ -26,41 +41,62 @@ function SystemWalletPanel() {
         </button>
       </div>
 
-      <div className="space-y-5">
-        {wallets.map((w) => (
-          <div key={w.name} className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-800">{w.name}</span>
-              <span
-                className={`text-[10px] font-medium px-2 py-0.5 rounded-full
-                  ${w.status === "Normal" ? "bg-green-100 text-green-700" : ""}
-                  ${w.status === "Warning" ? "bg-orange-100 text-orange-700" : ""}
-                  ${w.status === "Stable" ? "bg-blue-100 text-blue-700" : ""}
-                `}
-              >
-                {w.status}
-              </span>
-            </div>
+      {loading ? (
+        <p className="text-sm text-gray-500">Loading wallet data...</p>
+      ) : (
+        <div className="space-y-5">
+          {wallets.map((w, i) => {
+            
+            const status =
+              w.status === "NORMAL"
+                ? "Normal"
+                : w.status === "WARNING"
+                ? "Warning"
+                : "Stable"
 
-            <div className="mt-1 text-base font-semibold text-gray-900">{w.amount}</div>
-            <div className="text-xs text-gray-400 mb-2">Threshold: {w.threshold}</div>
+            
+            const statusClass =
+              status === "Normal"
+                ? "bg-green-100 text-green-700"
+                : status === "Warning"
+                ? "bg-orange-100 text-orange-700"
+                : "bg-blue-100 text-blue-700"
 
-            <div className="flex items-center gap-2">
-              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-2.5 rounded-full transition-all
-                    ${w.status === "Normal" ? "bg-blue-500" : ""}
-                    ${w.status === "Warning" ? "bg-blue-400" : ""}
-                    ${w.status === "Stable" ? "bg-blue-500" : ""}
-                  `}
-                  style={{ width: `${w.percent}%` }}
-                />
+            
+            const percent = Math.min((w.current_balance / 20000) * 100, 100)
+
+            return (
+              <div key={i} className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-800">{w.name}</span>
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusClass}`}>
+                    {status}
+                  </span>
+                </div>
+
+                <div className="mt-1 text-base font-semibold text-gray-900">
+                  ${w.current_balance.toLocaleString()}
+                </div>
+                <div className="text-xs text-gray-400 mb-2">Threshold: $1B - $5B</div>
+
+                <div className="flex items-center gap-2">
+                  <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-2.5 rounded-full transition-all
+                        ${status === "Normal" ? "bg-blue-500" : ""}
+                        ${status === "Warning" ? "bg-blue-400" : ""}
+                        ${status === "Stable" ? "bg-blue-500" : ""}
+                      `}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500 w-8 text-right">{percent.toFixed(0)}%</span>
+                </div>
               </div>
-              <span className="text-xs text-gray-500 w-8 text-right">{w.percent}%</span>
-            </div>
-          </div>
-        ))}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -79,7 +115,6 @@ export default function DashboardOverview() {
         const url = `${API_URL}/wallets/dashboard/list`
         console.log("📡 Fetching dashboard data from:", url)
 
-        // 🔥 Dùng axios thay fetch
         const res = await axiosClient.get(url, {
           withCredentials: true, // gửi cookie
         })
@@ -92,7 +127,7 @@ export default function DashboardOverview() {
           totalUsers: d.total_of_users ?? 0,
           activeSubWallets: d.total_of_active_sub_wallets ?? 0,
           pendingCollection: d.total_of_pending_collection ?? 0,
-          systemAlerts: 0, // chưa có trong API
+          systemAlerts: 0, 
         })
       } catch (err: any) {
         console.error("❌ Error fetching dashboard data:", err.message)

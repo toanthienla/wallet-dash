@@ -42,7 +42,6 @@ interface WalletDetail {
 }
 
 export default function WalletDetailPage() {
-  
   // const params = useParams();
   // const walletAddress = params.id as string;
   const walletAddress = "0xe39a611233c237ea006E5406dc1DEAce1ED38368";
@@ -50,27 +49,23 @@ export default function WalletDetailPage() {
   const [wallet, setWallet] = useState<WalletDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loadingTx, setLoadingTx] = useState(true);
+
+  // --- Pagination State & Logic ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // số transaction hiển thị mỗi trang
+  const totalPages = Math.ceil(transactions.length / itemsPerPage);
+  const paginatedTransactions = transactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   useEffect(() => {
     const fetchWallet = async () => {
       try {
-        const res = await axiosClient.get(
-          `${API_URL}/wallets/dashboard/${walletAddress}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            }
-          }
-        );
-
-        const data = res.data;
-        const apiData = data.data;
-
-        if (!apiData) {
-          console.error("Invalid data structure", data);
-          setWallet(null);
-          setLoading(false);
-          return;
-        }
+        const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
+        const apiData = res.data?.data;
 
         const totalAssets = apiData.assets;
         const assets = apiData.balances.map((b: any, i: number) => ({
@@ -80,11 +75,7 @@ export default function WalletDetailPage() {
           color: ["bg-green-500", "bg-orange-500", "bg-blue-500", "bg-purple-500"][i % 4],
         }));
 
-        const chartData = apiData.balances.map((b: any, i: number) => ({
-          date: `T${i + 1}`,
-          balance: b.current_value,
-        }));
-
+        // Không map chartData từ balances nữa
         setWallet({
           userName: apiData.user.username,
           email: apiData.user.email,
@@ -94,10 +85,9 @@ export default function WalletDetailPage() {
           totalWithdrawal: apiData.total_withdrawn,
           totalReceived: apiData.total_received,
           assets,
-          chartData,
+          chartData: [], // tạm thời rỗng, sẽ fetch API chart riêng
         });
-      } catch (err) {
-        console.error(" Error fetching wallet:", err);
+      } catch {
         setWallet(null);
       } finally {
         setLoading(false);
@@ -105,6 +95,58 @@ export default function WalletDetailPage() {
     };
 
     fetchWallet();
+  }, [walletAddress]);
+
+  // ✅ Fetch Transaction History
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`);
+        const data = res.data?.data?.transactions || [];
+
+        const formatted = data.map((tx: any) => ({
+          date: new Date(tx.date_created).toLocaleString(),
+          id: tx.hash ?? "-",
+          type: tx.transaction_type?.name ?? "-",
+          amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
+          asset: tx.currency_data?.full_name || tx.currency_slug.toUpperCase(),
+          address: tx.from_address || tx.to_address || "-",
+          status: tx.transaction_status,
+        }));
+
+        setTransactions(formatted);
+      } catch {
+        setTransactions([]);
+      } finally {
+        setLoadingTx(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [walletAddress]);
+
+  // ✅ Fetch Chart Data from statistic-total-assets API
+  useEffect(() => {
+    const fetchWalletChart = async () => {
+      try {
+        const res = await axiosClient.get(
+          `${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`
+        );
+
+        // map API mới về {date, balance}
+        const chartData = res.data.labels.map((label: string, i: number) => ({
+          date: new Date(label).toLocaleString(),
+          balance: res.data.data[0].values[i],
+        }));
+
+        // update wallet state với chartData
+        setWallet((prev) => prev ? { ...prev, chartData } : null);
+      } catch (err) {
+        console.error("Error fetching chart data:", err);
+      }
+    };
+
+    fetchWalletChart();
   }, [walletAddress]);
 
   if (loading) return <div>Loading...</div>;
@@ -155,78 +197,94 @@ export default function WalletDetailPage() {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {[
-                { title: "Total Deposit", value: wallet.totalDeposit, trend: "+", trendColor: "green" },
-                { title: "Total Withdrawal", value: wallet.totalWithdrawal, trend: "-", trendColor: "red" },
-                { title: "Total Received", value: wallet.totalReceived, trend: "+", trendColor: "green" },
-              ].map((card, i) => (
+              {[ wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived ].map((v, i) => (
                 <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6">
-                  <p className="text-sm text-gray-500">{card.title}</p>
-                  <p className="text-2xl font-semibold text-gray-900 mt-1">
-                    ${card.value.toLocaleString()}
-                  </p>
-                  <div className="flex items-center gap-2 mt-3">
-                    <span
-                      className={`text-xs font-medium text-${card.trendColor}-600 bg-${card.trendColor}-50 px-2 py-0.5 rounded-md`}
-                    >
-                      {card.trend}0%
-                    </span>
-                    <span className="text-sm text-gray-500">From last month</span>
-                  </div>
+                  <p className="text-sm text-gray-500">{["Total Deposit", "Total Withdrawal", "Total Received"][i]}</p>
+                  <p className="text-2xl font-semibold text-gray-900 mt-1">${v.toLocaleString()}</p>
                 </div>
               ))}
             </div>
 
-            {/* Chart Section */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Statistics</h3>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={wallet.chartData}>
-                    <defs>
-                      <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      stroke="#9CA3AF"
-                      fontSize={12}
-                      tickMargin={10}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      stroke="#9CA3AF"
-                      fontSize={12}
-                      tickMargin={10}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "white",
-                        border: "1px solid #E5E7EB",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="balance"
-                      stroke="#2563EB"
-                      strokeWidth={2.5}
-                      dot={false}
-                      fill="url(#balanceGradient)"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+           {/* Chart Section */}
+<div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
+
+    {/* Time range filter + Date range + Stat summary */}
+    <div className="flex items-center gap-4">
+      {/* Time filter */}
+      <div className="flex items-center bg-gray-50 rounded-full border border-gray-200">
+        {["Daily", "Weekly", "Monthly"].map((label, i) => (
+          <button
+            key={i}
+            className={`px-3 py-1.5 text-sm font-medium rounded-full transition ${
+              label === "Daily"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Date range picker */}
+      <button className="flex items-center px-3 py-2 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-4 w-4 text-gray-400 mr-2"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+        05 Feb – 06 March
+      </button>
+
+      {/* Summary stats */}
+      <div className="flex items-center gap-6">
+        <div className="flex flex-col text-right">
+          <p className="text-sm text-gray-500">Avg. Deposit</p>
+          <p className="text-base font-semibold text-gray-900">$212,142.12</p>
+        </div>
+        <div className="flex flex-col text-right">
+          <p className="text-sm text-gray-500">Avg. Interest</p>
+          <p className="text-base font-semibold text-gray-900">$30,321.23</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Chart */}
+  <div className="h-80">
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={wallet.chartData}>
+        <CartesianGrid stroke="#F3F4F6" vertical={false} />
+        <XAxis dataKey="date" stroke="#9CA3AF" />
+        <YAxis stroke="#9CA3AF" />
+        <Tooltip />
+        <Line
+          type="monotone"
+          dataKey="balance"
+          stroke="#2563EB"
+          strokeWidth={2.5}
+          dot={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+</div>
+
 
             {/* Assets Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Pie Chart */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-base font-semibold text-gray-900">Asset Category</h3>
@@ -240,10 +298,7 @@ export default function WalletDetailPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={wallet.assets.map((a) => ({
-                            name: a.name,
-                            value: a.percentage,
-                          }))}
+                          data={wallet.assets.map((a) => ({ name: a.name, value: a.percentage }))}
                           innerRadius={60}
                           outerRadius={80}
                           paddingAngle={2}
@@ -278,7 +333,131 @@ export default function WalletDetailPage() {
                   </div>
                 </div>
               </div>
+
+               {/* Asset List */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-base font-semibold text-gray-900">Asset List</h3>
+                  <button className="text-gray-400 hover:text-gray-600">
+                    <MoreHorizontal size={18} />
+                  </button>
+                </div>
+
+                <div className="divide-y divide-gray-100">
+                  {[ 
+                    { name: "Bitcoin", symbol: "BTC", amount: "$9,408.65", change: "+1.18%", icon: "/images/icons/Bitcoin.svg", trendColor: "text-green-500" },
+                    { name: "Ethereum", symbol: "ETH", amount: "$17,820.00", change: "-0.42%", icon: "/images/icons/Ethereum.svg", trendColor: "text-red-500" },
+                    { name: "XP", symbol: "XP", amount: "$5,327.00", change: "+2.10%", icon: "/images/icons/XP.svg", trendColor: "text-green-500" },
+                    { name: "Tether", symbol: "USDT", amount: "$1,895.00", change: "+0.35%", icon: "/images/icons/Tether.svg", trendColor: "text-green-500" },
+                  ].map((asset, i) => (
+                    <div key={i} className="flex items-center justify-between py-3 hover:bg-gray-50 transition">
+                      <div className="flex items-center gap-3">
+                        <img src={asset.icon} alt={asset.name} className="w-8 h-8 rounded-full object-contain" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{asset.name}</p>
+                          <p className="text-xs text-gray-500">{asset.symbol}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gray-900">{asset.amount}</p>
+                        <p className={`text-xs ${asset.trendColor}`}>{asset.change}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div> {/* ✅ Đóng grid */}
+
+            {/* Transaction History */}
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-8">
+              <h3 className="text-base font-semibold text-gray-900 mb-4">Transaction History</h3>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-700">
+                  <thead className="text-gray-500 border-b">
+                    <tr>
+                      <th className="py-3 px-6">Date/time</th>
+                      <th className="py-3 px-6">Transaction ID</th>
+                      <th className="py-3 px-6">Type</th>
+                      <th className="py-3 px-6">Amount</th>
+                      <th className="py-3 px-6">Asset</th>
+                      <th className="py-3 px-6">Wallet Address</th>
+                      <th className="py-3 px-6">Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingTx ? (
+                      <tr><td colSpan={8} className="text-center py-6 text-gray-500">Loading...</td></tr>
+                    ) : transactions.length === 0 ? (
+                      <tr><td colSpan={8} className="text-center py-6 text-gray-500">No transactions found</td></tr>
+                    ) : (
+                      paginatedTransactions.map((t, i) => (
+                        <tr key={i} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-6">{t.date}</td>
+                          <td className="py-3 px-6 text-blue-600 font-mono">{t.id}</td>
+                          <td className="py-3 px-6">{t.type}</td>
+                          <td className="py-3 px-6">{t.amount}</td>
+                          <td className="py-3 px-6 text-indigo-500">{t.asset}</td>
+                          <td className="py-3 px-6">{t.address}</td>
+                          <td className="py-3 px-6">
+                            <span className={`px-3 py-1 rounded-full text-xs ${
+                              t.status === "success"
+                                ? "bg-green-50 text-green-600"
+                                : t.status === "pending"
+                                ? "bg-blue-50 text-blue-600"
+                                : "bg-red-50 text-red-600"
+                            }`}>{t.status}</span>
+                          </td>
+                          <td className="py-3 px-6 text-right">
+                            <button className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs">View detail</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+             <div className="flex items-center justify-between mt-6">
+              <button
+                className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${
+                  currentPage === 1 ? "text-gray-400 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
+                }`}
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              >
+                ← Previous
+              </button>
+
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalPages || 1 }).map((_, i) => (
+                  <button
+                    key={i}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium ${
+                      i + 1 === currentPage ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                    onClick={() => setCurrentPage(i + 1)}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${
+                  currentPage === totalPages ? "text-gray-400 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
+                }`}
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              >
+                Next →
+              </button>
             </div>
+
+            </section>
+
           </main>
         </div>
       </div>
