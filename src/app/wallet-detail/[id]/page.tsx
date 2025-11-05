@@ -343,28 +343,42 @@ export default function WalletDetailPage() {
                   </button>
                 </div>
 
-                <div className="divide-y divide-gray-100">
-                  {[ 
-                    { name: "Bitcoin", symbol: "BTC", amount: "$9,408.65", change: "+1.18%", icon: "/images/icons/Bitcoin.svg", trendColor: "text-green-500" },
-                    { name: "Ethereum", symbol: "ETH", amount: "$17,820.00", change: "-0.42%", icon: "/images/icons/Ethereum.svg", trendColor: "text-red-500" },
-                    { name: "XP", symbol: "XP", amount: "$5,327.00", change: "+2.10%", icon: "/images/icons/XP.svg", trendColor: "text-green-500" },
-                    { name: "Tether", symbol: "USDT", amount: "$1,895.00", change: "+0.35%", icon: "/images/icons/Tether.svg", trendColor: "text-green-500" },
-                  ].map((asset, i) => (
-                    <div key={i} className="flex items-center justify-between py-3 hover:bg-gray-50 transition">
-                      <div className="flex items-center gap-3">
-                        <img src={asset.icon} alt={asset.name} className="w-8 h-8 rounded-full object-contain" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{asset.name}</p>
-                          <p className="text-xs text-gray-500">{asset.symbol}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-900">{asset.amount}</p>
-                        <p className={`text-xs ${asset.trendColor}`}>{asset.change}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+               <div className="divide-y divide-gray-100">
+  {wallet.assets.length === 0 ? (
+    <p className="text-center py-6 text-gray-500">No assets found</p>
+  ) : (
+    wallet.assets.map((asset, i) => (
+      <div
+        key={i}
+        className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
+      >
+        <div className="flex items-center gap-3">
+          {/* Có thể dùng icon thật nếu API có trả về link hình ảnh */}
+          <div
+            className={`w-8 h-8 rounded-full flex items-center justify-center ${asset.color} bg-opacity-10`}
+          >
+            <span className="text-sm font-semibold text-gray-700">
+              {asset.name.slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-900">{asset.name}</p>
+            <p className="text-xs text-gray-500">
+              {asset.percentage}% of total
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-semibold text-gray-900">
+            ${Number(asset.amount).toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-500">—</p>
+        </div>
+      </div>
+    ))
+  )}
+</div>
+
               </div>
             </div> {/* ✅ Đóng grid */}
 
