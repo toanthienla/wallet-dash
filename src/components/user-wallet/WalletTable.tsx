@@ -1,7 +1,22 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Search, Download, CheckSquare } from "lucide-react"
 import Link from "next/link"
+import { API_URL } from "@/utils/constants"
+import axiosClient from "@/utils/axiosClient"
+
+type Wallet = {
+  id: string
+  user: {
+    first_name: string | null
+    last_name: string | null
+    email: string | null
+  }
+  assets: number
+  address: string
+  is_initialized_passcode: boolean
+  total_transactions_today: number
+}
 
 type Row = {
   id: string
@@ -10,20 +25,8 @@ type Row = {
   status: "Active" | "Medium" | "High Value" | "VIP"
   transactions: string
   amount: string
+  address: string
 }
-
-const mockRows: Row[] = [
-  { id: "DE124321", name: "John Doe", initials: "JD", status: "Active", transactions: "3 transactions today", amount: "$2,400,000" },
-  { id: "DE124322", name: "Kierra Franci", initials: "KF", status: "Medium", transactions: "1 transaction today", amount: "$1,800,000" },
-  { id: "DE124323", name: "Emerson Workman", initials: "EW", status: "High Value", transactions: "5 transactions this week", amount: "$5,200,000" },
-  { id: "DE124324", name: "Chance Philips", initials: "CP", status: "VIP", transactions: "Large holder", amount: "$8,500,000" },
-  { id: "DE124325", name: "Terry Geidt", initials: "TG", status: "Medium", transactions: "Active trader", amount: "$3,100,000" },
-  { id: "DE124326", name: "Sarah Wilson", initials: "SW", status: "Active", transactions: "2 transactions today", amount: "$1,200,000" },
-  { id: "DE124327", name: "Mike Johnson", initials: "MJ", status: "High Value", transactions: "4 transactions this week", amount: "$4,800,000" },
-  { id: "DE124328", name: "Lisa Davis", initials: "LD", status: "VIP", transactions: "Large holder", amount: "$12,000,000" },
-  { id: "DE124329", name: "David Brown", initials: "DB", status: "Medium", transactions: "Active trader", amount: "$2,300,000" },
-  { id: "DE124330", name: "Emma Taylor", initials: "ET", status: "Active", transactions: "1 transaction today", amount: "$950,000" },
-]
 
 function StatusPill({ status }: { status: Row["status"] }) {
   const map: Record<Row["status"], string> = {
@@ -40,10 +43,53 @@ function StatusPill({ status }: { status: Row["status"] }) {
 }
 
 export default function WalletTable() {
+  const [wallets, setWallets] = useState<Row[]>([])
   const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    const fetchWallets = async () => {
+      try {
+        const res = await axiosClient.get(`${API_URL}/wallets/dashboard/list?page=${page}`)
+        const data = res.data.data.wallets
+
+        const rows = data.map((w: Wallet) => {
+          const fullName = [w.user.first_name, w.user.last_name].filter(Boolean).join(" ") || "No user info"
+          const initials = fullName
+            .split(" ")
+            .map((n) => n[0]?.toUpperCase())
+            .join("")
+            .slice(0, 2)
+
+          let status: Row["status"] = "Medium"
+          if (w.is_initialized_passcode) status = "Active"
+          if (w.assets > 5000000) status = "High Value"
+          if (w.assets > 10000000) status = "VIP"
+
+          return {
+            id: w.id,
+            name: fullName,
+            initials,
+            address: w.address,
+            status,
+            transactions: w.total_transactions_today
+              ? `${w.total_transactions_today} transactions today`
+              : "No transactions",
+            amount: `$${w.assets.toLocaleString()}`,
+          }
+        })
+
+        setWallets(rows)
+      } catch (err) {
+        console.error("Error fetching wallets:", err)
+      }
+    }
+
+    fetchWallets()
+  }, [page])
+
   const perPage = 10
-  const pages = Math.ceil(mockRows.length / perPage)
-  const visible = mockRows.slice((page - 1) * perPage, page * perPage)
+  const pages = Math.ceil(wallets.length / perPage)
+  const visible = wallets.slice((page - 1) * perPage, page * perPage)
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -98,7 +144,7 @@ export default function WalletTable() {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-800">{r.name}</div>
-                      <div className="text-xs text-gray-400">123123123123123</div>
+                      <div className="text-xs text-gray-400">{r.address}</div>
                     </div>
                   </div>
                 </td>
@@ -120,9 +166,8 @@ export default function WalletTable() {
         </table>
       </div>
 
-      {/* Pagination — luôn hiển thị Previous / Next / Page */}
+      {/* Pagination */}
       <div className="flex flex-col md:flex-row items-center justify-between mt-5 gap-3">
-        {/* Previous */}
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
@@ -135,7 +180,6 @@ export default function WalletTable() {
           ← <span>Previous</span>
         </button>
 
-        {/* Page numbers */}
         <div className="flex items-center space-x-1">
           {Array.from({ length: pages || 1 }).map((_, i) => {
             const num = i + 1
@@ -155,15 +199,9 @@ export default function WalletTable() {
           })}
         </div>
 
-        {/* Next */}
         <button
-          onClick={() => setPage((p) => Math.min(pages, p + 1))}
-          disabled={page === pages}
-          className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${
-            page === pages
-              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
-              : "text-gray-600 border-gray-200 hover:bg-gray-50"
-          }`}
+          onClick={() => setPage((p) => p + 1)}
+          className="flex items-center space-x-1 px-4 py-2 rounded-full border text-sm text-gray-600 hover:bg-gray-50 transition"
         >
           <span>Next</span> →
         </button>
