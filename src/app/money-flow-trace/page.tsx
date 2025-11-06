@@ -8,7 +8,6 @@ import Image from "next/image";
 import axiosClient from "@/utils/axiosClient";
 import { API_URL } from "@/utils/constants";
 
-
 function StatCard({
   title,
   value,
@@ -36,42 +35,11 @@ function StatCard({
   );
 }
 
-
 type TraceStats = {
   total_transactions: number;
   volume_traced: number;
   suspicious_pattems: number;
 };
-
-type TraceStep = {
-  step_id: string;
-  name: string;
-  status: string;
-  start_time?: string | number;
-  end_time?: string | number;
-  transaction: {
-    transaction_id: number;
-    amount: number;
-    assets: number;
-    date_created: string;
-    status: string;
-    from_address: string;
-    to_address: string;
-    currency: {
-      full_name: string;
-      slug?: string;
-    };
-    source: {
-      wallet_address: string;
-      email: string;
-    };
-    destination: {
-      wallet_address: string;
-      email: string;
-    };
-  };
-};
-
 
 export default function TransactionTracePage() {
   const [stats, setStats] = useState<TraceStats>({
@@ -80,16 +48,12 @@ export default function TransactionTracePage() {
     suspicious_pattems: 0,
   });
 
-  const [steps, setSteps] = useState<TraceStep[]>([]);
+  const [traces, setTraces] = useState<any[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [loadingTrace, setLoadingTrace] = useState(true);
+  const [loadingTraces, setLoadingTraces] = useState(true);
 
-  
-  const traceId = "3229fed2-ff70-40a3-866b-5b1fec63c286";
-
- 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchTraces = async () => {
       try {
         const response = await axiosClient.get(
           `${API_URL}/transaction/dashboard/traces`,
@@ -100,47 +64,24 @@ export default function TransactionTracePage() {
         );
 
         const data = response.data?.data || {};
-        const s = data.stats || data; 
+        setTraces(data.traces || []);
+        const s = data.stats || data;
         setStats({
           total_transactions: s.total_transactions ?? 0,
           volume_traced: s.volume_traced ?? 0,
           suspicious_pattems: s.suspicious_pattems ?? 0,
         });
       } catch (error) {
-        console.error("❌ Error fetching transaction stats:", error);
+        console.error("❌ Error fetching traces:", error);
       } finally {
+        setLoadingTraces(false);
         setLoadingStats(false);
       }
     };
 
-    fetchStats();
+    fetchTraces();
   }, []);
 
-  
-  useEffect(() => {
-    const fetchTraceSteps = async () => {
-      try {
-        const response = await axiosClient.get(
-          `${API_URL}/transaction/dashboard/traces/${traceId}`,
-          {
-            headers: { "Content-Type": "application/json" },
-            withCredentials: true,
-          }
-        );
-
-        const data = response.data?.data || {};
-        setSteps(data.steps || []);
-      } catch (error) {
-        console.error("❌ Error fetching trace detail:", error);
-      } finally {
-        setLoadingTrace(false);
-      }
-    };
-
-    fetchTraceSteps();
-  }, [traceId]);
-
-  
   const formatNumber = (num: number) =>
     new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(num);
 
@@ -168,19 +109,6 @@ export default function TransactionTracePage() {
     }
   };
 
-  const calcDuration = (start?: string | number, end?: string | number) => {
-    try {
-      const s = typeof start === "string" ? parseInt(start) : (start as number);
-      const e = typeof end === "string" ? parseInt(end) : (end as number);
-      if (!s || !e) return "-";
-      const diff = (e - s) / 1000;
-      return `${diff.toFixed(2)}s`;
-    } catch {
-      return "-";
-    }
-  };
-
-  
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <div className="flex">
@@ -194,7 +122,9 @@ export default function TransactionTracePage() {
               <StatCard
                 title="Total Transactions"
                 value={
-                  loadingStats ? "Loading..." : formatNumber(stats.total_transactions)
+                  loadingStats
+                    ? "Loading..."
+                    : formatNumber(stats.total_transactions)
                 }
                 icon={
                   <Image
@@ -207,7 +137,9 @@ export default function TransactionTracePage() {
               />
               <StatCard
                 title="Volume Traced (VND)"
-                value={loadingStats ? "Loading..." : formatNumber(stats.volume_traced)}
+                value={
+                  loadingStats ? "Loading..." : formatNumber(stats.volume_traced)
+                }
                 icon={
                   <Image
                     src="/images/icons/TotalBVND.svg"
@@ -219,7 +151,11 @@ export default function TransactionTracePage() {
               />
               <StatCard
                 title="Suspicious Patterns"
-                value={loadingStats ? "Loading..." : formatNumber(stats.suspicious_pattems)}
+                value={
+                  loadingStats
+                    ? "Loading..."
+                    : formatNumber(stats.suspicious_pattems)
+                }
                 icon={
                   <Image
                     src="/images/icons/Critical.svg"
@@ -463,61 +399,14 @@ export default function TransactionTracePage() {
 
 
           
-            {/*  Recent Transaction Flows (fixed) */}
-            
+           {/* ✅ Recent Transaction Flows (đã fix API) */}
             <section className="rounded-2xl bg-white shadow-md border border-gray-100 p-6 mt-8">
-              {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-base font-semibold text-gray-900">
                   Recent Transaction Flows
                 </h2>
-
-                <div className="flex items-center gap-3">
-                  {/* Search */}
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search..."
-                      className="w-64 rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-3 py-2.5 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="absolute left-3 top-2.5 h-4 w-4 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
-                      />
-                    </svg>
-                  </div>
-
-                  {/* Filter */}
-                  <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-gray-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 4h18M6 10h12M9 16h6"
-                      />
-                    </svg>
-                    Filter
-                  </button>
-                </div>
               </div>
 
-              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm text-gray-700">
                   <thead>
@@ -531,71 +420,69 @@ export default function TransactionTracePage() {
                       <th className="px-5 py-3 text-right">Action</th>
                     </tr>
                   </thead>
-
                   <tbody className="divide-y divide-gray-100">
-                    {loadingTrace ? (
+                    {loadingTraces ? (
                       <tr>
                         <td colSpan={7} className="text-center py-6 text-gray-500">
-                          Loading transaction trace...
+                          Loading transaction traces...
                         </td>
                       </tr>
-                    ) : steps.length === 0 ? (
+                    ) : traces.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="text-center py-6 text-gray-400">
-                          No steps found in this trace.
+                          No traces found.
                         </td>
                       </tr>
                     ) : (
-                      steps.map((step, i) => (
-                        <tr key={step.step_id || i} className="hover:bg-gray-50 transition">
+                      traces.map((item, i) => (
+                        <tr key={item.trace_id || i} className="hover:bg-gray-50 transition">
                           <td className="px-5 py-4 font-medium text-gray-800">
-                            #{step.transaction.transaction_id}
+                            #{item.transaction.transaction_id}
                           </td>
-
                           <td className="px-5 py-4">
                             <div>
                               <p className="font-medium text-gray-900 truncate max-w-[200px]">
-                                {step.transaction.source.wallet_address || "--"}
+                                {item.transaction.source.wallet_address || "--"}
                               </p>
                               <p className="text-xs text-gray-400">
-                                {step.transaction.source.email || "--"}
+                                {item.transaction.source.email || "--"}
                               </p>
                             </div>
                           </td>
-
                           <td className="px-5 py-4">
                             <div>
                               <p className="font-medium text-gray-900 truncate max-w-[200px]">
-                                {step.transaction.destination.wallet_address || "--"}
+                                {item.transaction.destination.wallet_address ||
+                                  "--"}
                               </p>
                               <p className="text-xs text-gray-400">
-                                {step.transaction.destination.email || "--"}
+                                {item.transaction.destination.email || "--"}
                               </p>
                             </div>
                           </td>
-
                           <td className="px-5 py-4 text-right">
                             <span
                               className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                                step.status
+                                item.status || item.transaction.status
                               )}`}
                             >
-                              {step.status ?? step.transaction.status ?? "unknown"}
+                              {item.status ?? item.transaction.status ?? "unknown"}
                             </span>
                           </td>
-
                           <td className="px-5 py-4 text-right text-gray-500">
-                            {step.transaction.date_created
-                              ? formatDate(step.transaction.date_created)
+                            {item.transaction.date_created
+                              ? formatDate(item.transaction.date_created)
                               : "-"}
                           </td>
-
                           <td className="px-5 py-4 text-right font-medium text-gray-800">
-                            {typeof step.transaction.amount === "number"
-                              ? `${formatNumber(step.transaction.amount)} ${step.transaction.currency?.full_name ?? ""}`
+                            {typeof item.transaction.amount === "number"
+                              ? `${formatNumber(
+                                  item.transaction.amount
+                                )} ${
+                                  item.transaction.currency?.full_name ?? ""
+                                }`
                               : "-"}
                           </td>
-
                           <td className="px-5 py-4 text-right">
                             <button className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-3 py-2 text-sm font-medium hover:bg-blue-700 transition">
                               <svg
@@ -605,8 +492,18 @@ export default function TransactionTracePage() {
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
                               >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
                               </svg>
                               Trace
                             </button>
