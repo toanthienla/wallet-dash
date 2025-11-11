@@ -154,7 +154,7 @@ export default function WalletTable() {
                 <td className="py-4 pr-6 text-gray-700">{r.transactions}</td>
                 <td className="py-4 pr-6 font-medium">{r.amount}</td>
                 <td className="py-4 pr-6">
-                  <Link href={`/wallet-detail/${r.id}`}>
+                  <Link href={`/wallet-detail/${r.address}`}>
                     <button className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700 transition">
                       View detail
                     </button>
@@ -171,11 +171,10 @@ export default function WalletTable() {
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
-          className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${
-            page === 1
+          className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${page === 1
               ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
               : "text-gray-600 border-gray-200 hover:bg-gray-50"
-          }`}
+            }`}
         >
           ← <span>Previous</span>
         </button>
@@ -187,11 +186,10 @@ export default function WalletTable() {
               <button
                 key={num}
                 onClick={() => setPage(num)}
-                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${
-                  page === num
+                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${page === num
                     ? "bg-blue-600 text-white"
                     : "text-gray-600 hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 {num}
               </button>
