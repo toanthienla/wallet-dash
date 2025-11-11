@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from "react"
-import { Search, Download, CheckSquare } from "lucide-react"
+import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { API_URL } from "@/utils/constants"
 import axiosClient from "@/utils/axiosClient"
@@ -30,19 +30,18 @@ type Row = {
 
 function StatusPill({ status }: { status: Row["status"] }) {
   const map: Record<Row["status"], string> = {
-    Active: "bg-green-100 text-green-700",
-    Medium: "bg-pink-100 text-pink-600",
-    "High Value": "bg-orange-100 text-orange-600",
-    VIP: "bg-blue-100 text-blue-600",
+    Active: "bg-green-100 text-green-700 border border-green-200",
+    Medium: "bg-pink-100 text-pink-700 border border-pink-200",
+    "High Value": "bg-orange-100 text-orange-700 border border-orange-200",
+    VIP: "bg-blue-100 text-blue-700 border border-blue-200",
   }
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-medium ${map[status]}`}>
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${map[status]}`}>
       {status}
     </span>
   )
 }
 
-// Helper function to generate user info with full name and initials
 function generateUserInfo(userData: { first_name: string | null; last_name: string | null }) {
   const fullName = [userData.first_name, userData.last_name]
     .filter(Boolean)
@@ -57,15 +56,43 @@ function generateUserInfo(userData: { first_name: string | null; last_name: stri
   return { fullName, initials }
 }
 
-export default function WalletTable() {
+// Table row skeleton
+function TableRowSkeleton() {
+  return (
+    <tr className="border-b border-gray-100 animate-pulse">
+      <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+      <td className="py-4 px-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+          <div className="space-y-2 flex-1">
+            <div className="h-4 bg-gray-200 rounded w-24"></div>
+            <div className="h-3 bg-gray-200 rounded w-32"></div>
+          </div>
+        </div>
+      </td>
+      <td className="py-4 px-6"><div className="h-6 bg-gray-200 rounded-full w-20"></div></td>
+      <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-28"></div></td>
+      <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+      <td className="py-4 px-6"><div className="h-8 bg-gray-200 rounded w-24"></div></td>
+    </tr>
+  )
+}
+
+export default function WalletTable({ loading: initialLoading = false }) {
   const [wallets, setWallets] = useState<Row[]>([])
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(initialLoading)
   const [searchQuery, setSearchQuery] = useState("")
+  const [error, setError] = useState<string | null>(null)
+
+  const perPage = 10
 
   useEffect(() => {
     const fetchWallets = async () => {
       try {
+        setLoading(true)
+        setError(null)
+
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/list`)
         const data = res.data.data.wallets
 
@@ -92,7 +119,8 @@ export default function WalletTable() {
 
         setWallets(rows)
       } catch (err) {
-        console.error("Error fetching wallets:", err)
+        console.error("❌ Error fetching wallets:", err)
+        setError("Failed to load wallet list")
         setWallets([])
       } finally {
         setLoading(false)
@@ -100,11 +128,8 @@ export default function WalletTable() {
     }
 
     fetchWallets()
-  }, [])
+  }, [page])
 
-  const perPage = 10
-
-  // Filter wallets based on search query
   const filteredWallets = wallets.filter((wallet) =>
     wallet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     wallet.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -114,33 +139,15 @@ export default function WalletTable() {
   const pages = Math.ceil(filteredWallets.length / perPage)
   const visible = filteredWallets.slice((page - 1) * perPage, page * perPage)
 
-  // Reset page when search query changes
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
     setPage(1)
   }
 
-  // Handle select all high balance
-  const handleSelectAllHighBalance = () => {
-    const highBalanceWallets = wallets.filter(
-      (w) => w.status === "High Value" || w.status === "VIP"
-    )
-    console.log("Selected high balance wallets:", highBalanceWallets)
-    // You can implement actual selection logic here
-  }
-
-  // Handle export list
-  const handleExportList = () => {
+  const handleExport = () => {
     const csvContent = [
       ["ID", "Name", "Status", "Transactions", "Amount", "Address"],
-      ...visible.map((r) => [
-        r.id,
-        r.name,
-        r.status,
-        r.transactions,
-        r.amount,
-        r.address,
-      ]),
+      ...visible.map((r) => [r.id, r.name, r.status, r.transactions, r.amount, r.address]),
     ]
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
       .join("\n")
@@ -150,7 +157,7 @@ export default function WalletTable() {
     const url = URL.createObjectURL(blob)
 
     link.setAttribute("href", url)
-    link.setAttribute("download", `wallets_${Date.now()}.csv`)
+    link.setAttribute("download", `wallets_${new Date().toISOString().split("T")[0]}.csv`)
     link.style.visibility = "hidden"
 
     document.body.appendChild(link)
@@ -158,50 +165,33 @@ export default function WalletTable() {
     document.body.removeChild(link)
   }
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-500">Loading wallets...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
-        <h3 className="text-sm font-semibold text-gray-800">
-          Wallet Selection & Control
-        </h3>
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">Wallet List</h3>
+          <p className="text-sm text-gray-500 mt-1">{visible.length} wallets displayed</p>
+        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
               value={searchQuery}
               onChange={handleSearchChange}
-              className="pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm w-60 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               placeholder="Search by name, address..."
             />
           </div>
 
           <button
-            onClick={handleSelectAllHighBalance}
-            className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-700 transition"
-          >
-            <CheckSquare size={16} />
-            <span>Select All High Balance</span>
-          </button>
-
-          <button
-            onClick={handleExportList}
-            className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm transition"
+            onClick={handleExport}
+            disabled={loading || visible.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-700 transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download size={16} />
-            <span>Export List</span>
+            Export
           </button>
         </div>
       </div>
@@ -210,38 +200,58 @@ export default function WalletTable() {
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="text-gray-500 border-b text-left">
-              <th className="py-3 pr-6 font-medium">ID</th>
-              <th className="py-3 pr-6 font-medium">User</th>
-              <th className="py-3 pr-6 font-medium">Status</th>
-              <th className="py-3 pr-6 font-medium">Transactions</th>
-              <th className="py-3 pr-6 font-medium">Amount</th>
-              <th className="py-3 pr-6 font-medium"></th>
+            <tr className="text-gray-600 border-b text-xs font-semibold">
+              <th className="py-3 px-6 text-left">ID</th>
+              <th className="py-3 px-6 text-left">User</th>
+              <th className="py-3 px-6 text-left">Status</th>
+              <th className="py-3 px-6 text-left">Transactions</th>
+              <th className="py-3 px-6 text-left">Amount</th>
+              <th className="py-3 px-6 text-left">Action</th>
             </tr>
           </thead>
           <tbody className="text-gray-700">
-            {visible.length === 0 ? (
+            {loading ? (
+              <>
+                {Array.from({ length: perPage }).map((_, i) => (
+                  <TableRowSkeleton key={`skeleton-${i}`} />
+                ))}
+              </>
+            ) : error ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-500">
-                  No wallets found
+                <td colSpan={6} className="text-center py-8 text-red-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <svg className="h-12 w-12 text-red-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm font-medium">{error}</p>
+                  </div>
+                </td>
+              </tr>
+            ) : visible.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-12 text-gray-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <svg className="h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                    </svg>
+                    <p className="text-sm font-medium">No wallets found</p>
+                  </div>
                 </td>
               </tr>
             ) : (
-              visible.map((r, i) => (
-                <tr key={i} className="border-b hover:bg-gray-50 transition">
-                  <td className="py-4 pr-6 font-mono text-xs text-gray-500">
+              visible.map((r) => (
+                <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                  <td className="py-4 px-6 font-mono text-xs text-gray-500">
                     {r.id.length > 20 ? `${r.id.slice(0, 20)}...` : r.id}
                   </td>
-                  <td className="py-4 pr-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-semibold text-blue-600">
                         {r.initials}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-gray-800">
-                          {r.name}
-                        </div>
-                        <div className="text-xs text-gray-400">
+                        <div className="text-sm font-medium text-gray-900">{r.name}</div>
+                        <div className="text-xs text-gray-500">
                           {r.address.length > 30
                             ? `${r.address.slice(0, 30)}...`
                             : r.address}
@@ -249,14 +259,14 @@ export default function WalletTable() {
                       </div>
                     </div>
                   </td>
-                  <td className="py-4 pr-6">
+                  <td className="py-4 px-6">
                     <StatusPill status={r.status} />
                   </td>
-                  <td className="py-4 pr-6 text-gray-700">{r.transactions}</td>
-                  <td className="py-4 pr-6 font-medium">{r.amount}</td>
-                  <td className="py-4 pr-6">
+                  <td className="py-4 px-6 text-gray-600 text-sm">{r.transactions}</td>
+                  <td className="py-4 px-6 font-semibold text-gray-900">{r.amount}</td>
+                  <td className="py-4 px-6">
                     <Link href={`/wallet-detail/${r.address}`}>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700 transition">
+                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition font-medium">
                         View detail
                       </button>
                     </Link>
@@ -269,28 +279,32 @@ export default function WalletTable() {
       </div>
 
       {/* Pagination */}
-      <div className="flex flex-col md:flex-row items-center justify-between mt-5 gap-3">
+      <div className="flex flex-col md:flex-row items-center justify-between mt-6 gap-4">
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-          className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${page === 1
+          disabled={page === 1 || loading}
+          className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${page === 1 || loading
             ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
             : "text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
         >
-          ← <span>Previous</span>
+          <ChevronLeft size={16} />
+          Previous
         </button>
 
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center gap-1">
           {Array.from({ length: pages || 1 }).map((_, i) => {
             const num = i + 1
             return (
               <button
                 key={num}
                 onClick={() => setPage(num)}
-                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${page === num
+                disabled={loading}
+                className={`w-8 h-8 rounded-lg text-sm font-medium transition ${page === num
                   ? "bg-blue-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
+                  : loading
+                    ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-100"
                   }`}
               >
                 {num}
@@ -300,16 +314,17 @@ export default function WalletTable() {
         </div>
 
         <button
-          onClick={() => setPage((p) => Math.min(p + 1, pages))}
-          disabled={page === pages}
-          className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${page === pages
+          onClick={() => setPage((p) => Math.min(p + 1, pages || 1))}
+          disabled={page === pages || loading}
+          className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${page === pages || loading
             ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
             : "text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
         >
-          <span>Next</span> →
+          Next
+          <ChevronRight size={16} />
         </button>
       </div>
     </div>
-  )
+  );
 }
