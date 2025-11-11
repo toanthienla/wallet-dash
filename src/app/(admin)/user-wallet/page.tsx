@@ -32,10 +32,7 @@ export default function UserWalletPage() {
     const fetchDashboardData = async () => {
       try {
         const response = await axiosClient.get(
-          `${API_URL}/wallets/dashboard/list`,
-          {
-            headers: { "Content-Type": "application/json" },
-          }
+          `${API_URL}/wallets/dashboard/list`
         );
 
         console.log(" Dashboard result:", response.data);

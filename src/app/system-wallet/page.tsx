@@ -29,12 +29,7 @@ export default function SystemWalletPage() {
   async function fetchSystemWallets() {
     try {
       const res = await axiosClient.get(
-        `${API_URL}/platform-config/dashboard/main-wallets`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          }
-        }
+        `${API_URL}/platform-config/dashboard/main-wallets`
       );
 
       return res.data;

@@ -16,9 +16,7 @@ function SystemWalletPanel() {
   useEffect(() => {
     const fetchWallets = async () => {
       try {
-        const res = await axiosClient.get(`${API_URL}/platform-config/dashboard/main-wallets`, {
-          withCredentials: true,
-        })
+        const res = await axiosClient.get(`${API_URL}/platform-config/dashboard/main-wallets`)
         const data = res.data?.data?.main_wallets || []
         setWallets(data)
       } catch (err: any) {
@@ -46,23 +44,23 @@ function SystemWalletPanel() {
       ) : (
         <div className="space-y-5">
           {wallets.map((w, i) => {
-            
+
             const status =
               w.status === "NORMAL"
                 ? "Normal"
                 : w.status === "WARNING"
-                ? "Warning"
-                : "Stable"
+                  ? "Warning"
+                  : "Stable"
 
-            
+
             const statusClass =
               status === "Normal"
                 ? "bg-green-100 text-green-700"
                 : status === "Warning"
-                ? "bg-orange-100 text-orange-700"
-                : "bg-blue-100 text-blue-700"
+                  ? "bg-orange-100 text-orange-700"
+                  : "bg-blue-100 text-blue-700"
 
-            
+
             const percent = Math.min((w.current_balance / 20000) * 100, 100)
 
             return (
@@ -115,9 +113,7 @@ export default function DashboardOverview() {
         const url = `${API_URL}/wallets/dashboard/list`
         console.log("📡 Fetching dashboard data from:", url)
 
-        const res = await axiosClient.get(url, {
-          withCredentials: true, // gửi cookie
-        })
+        const res = await axiosClient.get(url)
 
         console.log("✅ Fetched data:", res.data)
 
@@ -127,7 +123,7 @@ export default function DashboardOverview() {
           totalUsers: d.total_of_users ?? 0,
           activeSubWallets: d.total_of_active_sub_wallets ?? 0,
           pendingCollection: d.total_of_pending_collection ?? 0,
-          systemAlerts: 0, 
+          systemAlerts: 0,
         })
       } catch (err: any) {
         console.error("❌ Error fetching dashboard data:", err.message)
