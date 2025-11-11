@@ -45,6 +45,8 @@ function StatusPill({ status }: { status: Row["status"] }) {
 export default function WalletTable() {
   const [wallets, setWallets] = useState<Row[]>([])
   const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     const fetchWallets = async () => {
@@ -84,15 +86,78 @@ export default function WalletTable() {
         setWallets(rows)
       } catch (err) {
         console.error("Error fetching wallets:", err)
+        setWallets([])
+      } finally {
+        setLoading(false)
       }
     }
 
     fetchWallets()
-  }, []) // 👈 no longer depends on `page`
+  }, [])
 
   const perPage = 10
-  const pages = Math.ceil(wallets.length / perPage)
-  const visible = wallets.slice((page - 1) * perPage, page * perPage)
+
+  // Filter wallets based on search query
+  const filteredWallets = wallets.filter((wallet) =>
+    wallet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    wallet.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    wallet.id.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const pages = Math.ceil(filteredWallets.length / perPage)
+  const visible = filteredWallets.slice((page - 1) * perPage, page * perPage)
+
+  // Reset page when search query changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+    setPage(1)
+  }
+
+  // Handle select all high balance
+  const handleSelectAllHighBalance = () => {
+    const highBalanceWallets = wallets.filter(
+      (w) => w.status === "High Value" || w.status === "VIP"
+    )
+    console.log("Selected high balance wallets:", highBalanceWallets)
+    // You can implement actual selection logic here
+  }
+
+  // Handle export list
+  const handleExportList = () => {
+    const csvContent = [
+      ["ID", "Name", "Status", "Transactions", "Amount", "Address"],
+      ...visible.map((r) => [
+        r.id,
+        r.name,
+        r.status,
+        r.transactions,
+        r.amount,
+        r.address,
+      ]),
+    ]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+
+    link.setAttribute("href", url)
+    link.setAttribute("download", `wallets_${Date.now()}.csv`)
+    link.style.visibility = "hidden"
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="text-center py-10 text-gray-500">Loading wallets...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -106,17 +171,25 @@ export default function WalletTable() {
           <div className="relative">
             <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
             <input
+              value={searchQuery}
+              onChange={handleSearchChange}
               className="pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm w-60 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              placeholder="Search..."
+              placeholder="Search by name, address..."
             />
           </div>
 
-          <button className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-700">
+          <button
+            onClick={handleSelectAllHighBalance}
+            className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-700 transition"
+          >
             <CheckSquare size={16} />
             <span>Select All High Balance</span>
           </button>
 
-          <button className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-black-50 text-black-600 hover:bg-black-100 text-sm">
+          <button
+            onClick={handleExportList}
+            className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm transition"
+          >
             <Download size={16} />
             <span>Export List</span>
           </button>
@@ -137,34 +210,50 @@ export default function WalletTable() {
             </tr>
           </thead>
           <tbody className="text-gray-700">
-            {visible.map((r, i) => (
-              <tr key={i} className="border-b hover:bg-gray-50 transition">
-                <td className="py-4 pr-6 font-mono text-xs text-gray-500">{r.id}</td>
-                <td className="py-4 pr-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
-                      {r.initials}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-800">{r.name}</div>
-                      <div className="text-xs text-gray-400">{r.address}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-4 pr-6">
-                  <StatusPill status={r.status} />
-                </td>
-                <td className="py-4 pr-6 text-gray-700">{r.transactions}</td>
-                <td className="py-4 pr-6 font-medium">{r.amount}</td>
-                <td className="py-4 pr-6">
-                  <Link href={`/wallet-detail/${r.id}`}>
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700 transition">
-                      View detail
-                    </button>
-                  </Link>
+            {visible.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-8 text-gray-500">
+                  No wallets found
                 </td>
               </tr>
-            ))}
+            ) : (
+              visible.map((r, i) => (
+                <tr key={i} className="border-b hover:bg-gray-50 transition">
+                  <td className="py-4 pr-6 font-mono text-xs text-gray-500">
+                    {r.id.length > 20 ? `${r.id.slice(0, 20)}...` : r.id}
+                  </td>
+                  <td className="py-4 pr-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+                        {r.initials}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-800">
+                          {r.name}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {r.address.length > 30
+                            ? `${r.address.slice(0, 30)}...`
+                            : r.address}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 pr-6">
+                    <StatusPill status={r.status} />
+                  </td>
+                  <td className="py-4 pr-6 text-gray-700">{r.transactions}</td>
+                  <td className="py-4 pr-6 font-medium">{r.amount}</td>
+                  <td className="py-4 pr-6">
+                    <Link href={`/wallet-detail/${r.address}`}>
+                      <button className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700 transition">
+                        View detail
+                      </button>
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
