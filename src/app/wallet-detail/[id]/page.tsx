@@ -31,7 +31,6 @@ interface WalletAsset {
 
 interface WalletDetail {
   userName: string;
-  userInitials: string;
   email: string;
   walletAddress: string;
   currentBalance: number;
@@ -40,6 +39,108 @@ interface WalletDetail {
   totalReceived: number;
   chartData: { date: string; balance: number }[];
   assets: WalletAsset[];
+}
+
+// Skeleton loaders
+function UserInfoCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 mb-8 animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 rounded-full bg-gray-200"></div>
+          <div className="flex-1">
+            <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-48"></div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-24"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+      <div className="h-8 bg-gray-200 rounded w-32"></div>
+    </div>
+  );
+}
+
+function ChartSectionSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8 animate-pulse">
+      <div className="flex items-center justify-between mb-6">
+        <div className="h-6 bg-gray-200 rounded w-32"></div>
+        <div className="space-y-2">
+          <div className="flex gap-4">
+            <div className="h-8 bg-gray-200 rounded-full w-24"></div>
+            <div className="h-8 bg-gray-200 rounded w-32"></div>
+            <div className="h-8 bg-gray-200 rounded w-32"></div>
+            <div className="h-8 bg-gray-200 rounded w-24"></div>
+          </div>
+        </div>
+      </div>
+      <div className="h-80 bg-gray-200 rounded"></div>
+    </div>
+  );
+}
+
+function AssetSectionSkeleton() {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 animate-pulse">
+        <div className="h-6 bg-gray-200 rounded w-32 mb-6"></div>
+        <div className="h-40 bg-gray-200 rounded"></div>
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 animate-pulse">
+        <div className="h-6 bg-gray-200 rounded w-32 mb-6"></div>
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded w-20 mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded w-24"></div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="h-4 bg-gray-200 rounded w-20 mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-12"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransactionTableSkeleton() {
+  return (
+    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-8 animate-pulse">
+      <div className="h-6 bg-gray-200 rounded w-40 mb-6"></div>
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex gap-4 py-4 border-b border-gray-100 last:border-b-0">
+            <div className="h-4 bg-gray-200 rounded w-24"></div>
+            <div className="h-4 bg-gray-200 rounded w-28"></div>
+            <div className="h-4 bg-gray-200 rounded w-20"></div>
+            <div className="h-4 bg-gray-200 rounded w-24"></div>
+            <div className="h-4 bg-gray-200 rounded w-20"></div>
+            <div className="h-4 bg-gray-200 rounded w-24"></div>
+            <div className="h-6 bg-gray-200 rounded-full w-16"></div>
+            <div className="h-8 bg-gray-200 rounded w-20"></div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default function WalletDetailPage() {
@@ -61,21 +162,6 @@ export default function WalletDetailPage() {
     currentPage * itemsPerPage
   );
 
-  // Helper function to generate full name and initials
-  const generateUserInfo = (userData: any) => {
-    const fullName = [userData.first_name, userData.last_name]
-      .filter(Boolean)
-      .join(" ") || "No user info";
-
-    const initials = fullName
-      .split(" ")
-      .map((n) => n[0]?.toUpperCase())
-      .join("")
-      .slice(0, 2);
-
-    return { fullName, initials };
-  };
-
   // ✅ Fetch Wallet Details
   useEffect(() => {
     if (!walletAddress) return;
@@ -93,11 +179,8 @@ export default function WalletDetailPage() {
           color: ["bg-green-500", "bg-orange-500", "bg-blue-500", "bg-purple-500"][i % 4],
         }));
 
-        const { fullName, initials } = generateUserInfo(apiData.user);
-
         setWallet({
-          userName: fullName,
-          userInitials: initials,
+          userName: apiData.user.username,
           email: apiData.user.email,
           walletAddress: apiData.wallet_address,
           currentBalance: totalAssets,
@@ -181,7 +264,26 @@ export default function WalletDetailPage() {
           <div className="flex-1 min-h-screen">
             <AppHeader />
             <main className="px-8 py-8">
-              <div className="text-center py-10 text-gray-500">Loading wallet details...</div>
+              <div className="mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
+                </div>
+              </div>
+
+              <UserInfoCardSkeleton />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <SummaryCardSkeleton />
+                <SummaryCardSkeleton />
+                <SummaryCardSkeleton />
+              </div>
+
+              <ChartSectionSkeleton />
+
+              <AssetSectionSkeleton />
+
+              <TransactionTableSkeleton />
             </main>
           </div>
         </div>
@@ -197,7 +299,27 @@ export default function WalletDetailPage() {
           <div className="flex-1 min-h-screen">
             <AppHeader />
             <main className="px-8 py-8">
-              <div className="text-center py-10 text-gray-500">Wallet not found</div>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <svg
+                      className="mx-auto h-12 w-12 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-1">Wallet Not Found</h3>
+                  <p className="text-gray-500">The wallet you are looking for does not exist.</p>
+                </div>
+              </div>
             </main>
           </div>
         </div>
@@ -231,7 +353,7 @@ export default function WalletDetailPage() {
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
                     <span className="text-2xl font-bold text-blue-600">
-                      {wallet.userInitials}
+                      {wallet.userName.slice(0, 2).toUpperCase()}
                     </span>
                   </div>
                   <div>
@@ -412,9 +534,11 @@ export default function WalletDetailPage() {
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600`}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center ${asset.color} bg-opacity-10`}
                           >
-                            {asset.name.slice(0, 2).toUpperCase()}
+                            <span className="text-sm font-semibold text-gray-700">
+                              {asset.name.slice(0, 2).toUpperCase()}
+                            </span>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">
@@ -462,7 +586,10 @@ export default function WalletDetailPage() {
                     {loadingTx ? (
                       <tr>
                         <td colSpan={8} className="text-center py-6 text-gray-500">
-                          Loading...
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                            Loading transactions...
+                          </div>
                         </td>
                       </tr>
                     ) : transactions.length === 0 ? (
