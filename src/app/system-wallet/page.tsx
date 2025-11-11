@@ -51,11 +51,11 @@ export default function SystemWalletPage() {
   }, []);
 
   if (loading) {
-    return <div className="p-4 text-center">Đang tải dữ liệu ví...</div>;
+    return <div className="p-4 text-center">Loading...</div>;
   }
 
   if (!walletData) {
-    return <div className="p-4 text-center text-red-500">Không thể tải dữ liệu ví</div>;
+    return <div className="p-4 text-center text-red-500">Wallet data not found!</div>;
   }
 
   const { total_wallets, total_balance, last_updated, main_wallets } = walletData;

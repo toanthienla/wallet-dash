@@ -21,7 +21,6 @@ export default function VolumeChart() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // ✅ GỌI API THEO PHONG CÁCH GIỐNG DashboardOverview nhưng dùng axios
         const url = `${API_URL}/transaction/dashboard/transaction-total-assets`
         console.log("📡 Fetching total assets from:", url)
 

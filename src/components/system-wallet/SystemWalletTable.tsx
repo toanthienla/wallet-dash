@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import { Search } from "lucide-react";
 import Image from "next/image";
 
-// 🧩 Kiểu dữ liệu nhận từ API
 type Wallet = {
   name: string;
   slug: string;
@@ -24,9 +23,8 @@ function StatusPill({ status }: { status: string }) {
   };
   return (
     <span
-      className={`px-3 py-1 rounded-full text-sm font-medium ${
-        map[status] || "bg-gray-100 text-gray-700"
-      }`}
+      className={`px-3 py-1 rounded-full text-sm font-medium ${map[status] || "bg-gray-100 text-gray-700"
+        }`}
     >
       {status}
     </span>
@@ -117,17 +115,16 @@ export default function SystemWalletTable({ wallets = [] }: Props) {
         </table>
       </div>
 
-            {/* Pagination — luôn hiển thị, kể cả khi chỉ có 1 trang */}
+      {/* Pagination — luôn hiển thị, kể cả khi chỉ có 1 trang */}
       <div className="flex items-center justify-between mt-6">
         {/* Previous */}
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm border transition ${
-            page === 1
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm border transition ${page === 1
               ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
               : "text-gray-700 border-gray-200 hover:bg-gray-50"
-          }`}
+            }`}
         >
           <span>←</span>
           <span>Previous</span>
@@ -140,11 +137,10 @@ export default function SystemWalletTable({ wallets = [] }: Props) {
               key={i}
               onClick={() => setPage(i + 1)}
               disabled={page === i + 1}
-              className={`w-8 h-8 rounded-full text-sm font-medium transition ${
-                page === i + 1
+              className={`w-8 h-8 rounded-full text-sm font-medium transition ${page === i + 1
                   ? "bg-blue-600 text-white cursor-default"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+                }`}
             >
               {i + 1}
             </button>
@@ -155,18 +151,17 @@ export default function SystemWalletTable({ wallets = [] }: Props) {
         <button
           onClick={() => setPage((p) => Math.min(pages, p + 1))}
           disabled={page === pages}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm border transition ${
-            page === pages
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm border transition ${page === pages
               ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
               : "text-gray-700 border-gray-200 hover:bg-gray-50"
-          }`}
+            }`}
         >
           <span>Next</span>
           <span>→</span>
         </button>
       </div>
 
-      
+
     </div>
   );
 }
