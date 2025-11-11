@@ -15,13 +15,12 @@ type Row = {
   status: "Processing" | "Completed" | "Failed";
 };
 
-async function fetchTransactions(page = 1): Promise<Row[]> {
+async function fetchTransactions(): Promise<Row[]> {
   try {
     const res = await axiosClient.get(
       `${API_URL}/transaction/dashboard/list`,
       {
-        params: { page, take: 10 },
-        withCredentials: true, 
+        withCredentials: true,
       }
     );
 
@@ -29,7 +28,6 @@ async function fetchTransactions(page = 1): Promise<Row[]> {
 
     const rows: Row[] = (data?.data?.transactions || []).map((tx: any) => ({
       id: String(tx.id),
-      
       datetime: new Date(tx.date_created).toISOString(),
       user: tx.user_id ?? tx.user_created ?? "unknown",
       type:
@@ -39,9 +37,7 @@ async function fetchTransactions(page = 1): Promise<Row[]> {
             ? "Withdraw"
             : "Redeem",
       amount: tx.amount,
-      
       asset: tx.currency_data?.name?.toUpperCase() || "Unknown",
-      
       status:
         tx.transaction_status === "success"
           ? "Completed"
@@ -77,17 +73,18 @@ export default function HistoryTable() {
 
   useEffect(() => {
     setLoading(true);
-    fetchTransactions(page)
+    fetchTransactions()
       .then(setRows)
       .catch((err) => console.error("Transaction fetch error:", err))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, []);
 
   const filtered = useMemo(() => {
     if (!query) return rows;
     return rows.filter((r) => r.id.includes(query) || r.user.includes(query));
   }, [query, rows]);
 
+  const totalPages = Math.ceil(filtered.length / perPage);
   const visible = filtered.slice((page - 1) * perPage, page * perPage);
 
   return (
@@ -140,7 +137,6 @@ export default function HistoryTable() {
             <tbody className="text-gray-700">
               {visible.map((r, idx) => (
                 <tr key={r.id + idx} className="border-b hover:bg-gray-50">
-                
                   <td className="py-5 px-6 text-sm text-gray-600">
                     {new Intl.DateTimeFormat("en-GB", {
                       dateStyle: "short",
@@ -153,10 +149,10 @@ export default function HistoryTable() {
                   <td className="py-5 px-6 text-sm">
                     <span
                       className={`inline-block px-3 py-1 rounded-full text-sm ${r.type === "Deposit"
-                          ? "bg-green-50 text-green-600"
-                          : r.type === "Withdraw"
-                            ? "bg-red-50 text-red-600"
-                            : "bg-pink-50 text-pink-600"
+                        ? "bg-green-50 text-green-600"
+                        : r.type === "Withdraw"
+                          ? "bg-red-50 text-red-600"
+                          : "bg-pink-50 text-pink-600"
                         }`}
                     >
                       {r.type}
@@ -183,17 +179,16 @@ export default function HistoryTable() {
         </div>
       )}
 
-            {/* Pagination — luôn hiển thị kể cả chỉ có 1 trang */}
+      {/* Pagination — always display */}
       <div className="flex items-center justify-between mt-6">
         {/* Previous */}
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${
-            page === 1
-              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
-              : "text-gray-700 border-gray-200 hover:bg-gray-50"
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${page === 1
+            ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+            : "text-gray-700 border-gray-200 hover:bg-gray-50"
+            }`}
         >
           <span>←</span>
           <span>Previous</span>
@@ -201,16 +196,14 @@ export default function HistoryTable() {
 
         {/* Page numbers */}
         <div className="flex items-center space-x-1">
-          {Array.from({ length: 1 }).map((_, i) => (
+          {Array.from({ length: totalPages }).map((_, i) => (
             <button
               key={i}
               onClick={() => setPage(i + 1)}
-              disabled
-              className={`w-8 h-8 rounded-full text-sm font-medium transition ${
-                page === i + 1
-                  ? "bg-blue-600 text-white cursor-default"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              className={`w-8 h-8 rounded-full text-sm font-medium transition ${page === i + 1
+                ? "bg-blue-600 text-white cursor-default"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
             >
               {i + 1}
             </button>
@@ -219,19 +212,17 @@ export default function HistoryTable() {
 
         {/* Next */}
         <button
-          onClick={() => setPage((p) => p + 1)}
-          disabled={rows.length < perPage}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${
-            rows.length < perPage
-              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
-              : "text-gray-700 border-gray-200 hover:bg-gray-50"
-          }`}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${page === totalPages
+            ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+            : "text-gray-700 border-gray-200 hover:bg-gray-50"
+            }`}
         >
           <span>Next</span>
           <span>→</span>
         </button>
       </div>
-
     </div>
   );
 }
