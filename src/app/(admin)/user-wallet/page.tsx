@@ -63,13 +63,11 @@ export default function UserWalletPage() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        setError(null);
 
         const response = await axiosClient.get(
           `${API_URL}/wallets/dashboard/list`
@@ -88,7 +86,6 @@ export default function UserWalletPage() {
         });
       } catch (error) {
         console.error("❌ Error fetching dashboard data:", error);
-        setError("Failed to load dashboard data");
       } finally {
         setLoading(false);
       }
@@ -97,52 +94,12 @@ export default function UserWalletPage() {
     fetchDashboardData();
   }, []);
 
-  if (error) {
-    return (
-      <div className="p-8">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-          <div className="flex items-start gap-4">
-            <svg
-              className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <div>
-              <h3 className="text-sm font-semibold text-red-900">Error Loading Dashboard</h3>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const formatNumber = (num: number) => new Intl.NumberFormat("en-US").format(num);
   const formatCurrency = (num: number) =>
     "$" + new Intl.NumberFormat("en-US").format(num);
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">User Wallet Management</h1>
-        <p className="text-gray-500 mt-2">Monitor and manage all user wallets and balances</p>
-      </div>
-
       {/* 🧩 Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {loading ? (
