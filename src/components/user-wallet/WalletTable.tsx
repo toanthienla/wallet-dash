@@ -49,11 +49,14 @@ export default function WalletTable() {
   useEffect(() => {
     const fetchWallets = async () => {
       try {
-        const res = await axiosClient.get(`${API_URL}/wallets/dashboard/list?page=${page}`)
+        const res = await axiosClient.get(`${API_URL}/wallets/dashboard/list`)
         const data = res.data.data.wallets
 
         const rows = data.map((w: Wallet) => {
-          const fullName = [w.user.first_name, w.user.last_name].filter(Boolean).join(" ") || "No user info"
+          const fullName = [w.user.first_name, w.user.last_name]
+            .filter(Boolean)
+            .join(" ") || "No user info"
+
           const initials = fullName
             .split(" ")
             .map((n) => n[0]?.toUpperCase())
@@ -85,7 +88,7 @@ export default function WalletTable() {
     }
 
     fetchWallets()
-  }, [page])
+  }, []) // 👈 no longer depends on `page`
 
   const perPage = 10
   const pages = Math.ceil(wallets.length / perPage)
@@ -172,8 +175,8 @@ export default function WalletTable() {
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
           className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${page === 1
-              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
-              : "text-gray-600 border-gray-200 hover:bg-gray-50"
+            ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+            : "text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
         >
           ← <span>Previous</span>
@@ -187,8 +190,8 @@ export default function WalletTable() {
                 key={num}
                 onClick={() => setPage(num)}
                 className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${page === num
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
                   }`}
               >
                 {num}
@@ -198,8 +201,12 @@ export default function WalletTable() {
         </div>
 
         <button
-          onClick={() => setPage((p) => p + 1)}
-          className="flex items-center space-x-1 px-4 py-2 rounded-full border text-sm text-gray-600 hover:bg-gray-50 transition"
+          onClick={() => setPage((p) => Math.min(p + 1, pages))}
+          disabled={page === pages}
+          className={`flex items-center space-x-1 px-4 py-2 rounded-full border text-sm transition ${page === pages
+            ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+            : "text-gray-600 border-gray-200 hover:bg-gray-50"
+            }`}
         >
           <span>Next</span> →
         </button>
