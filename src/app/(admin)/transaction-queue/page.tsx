@@ -26,11 +26,7 @@ export default function TransactionQueuePage() {
         console.log("📡 Fetching transaction queue data from:", url);
 
         // axios call
-        const res = await axiosClient.get(url, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        const res = await axiosClient.get(url);
 
         console.log("Transaction Queue Data:", res.data);
 
@@ -70,7 +66,7 @@ export default function TransactionQueuePage() {
           <MetricCard title="Cancelled" value={stats.cancelled.toString()} iconSrc="/images/icons/Last.svg" />
         </div>
 
-       
+
 
         {/* === Data Table === */}
         <TransactionQueueTable />

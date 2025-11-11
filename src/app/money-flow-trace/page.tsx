@@ -56,11 +56,7 @@ export default function TransactionTracePage() {
     const fetchTraces = async () => {
       try {
         const response = await axiosClient.get(
-          `${API_URL}/transaction/dashboard/traces`,
-          {
-            headers: { "Content-Type": "application/json" },
-            withCredentials: true,
-          }
+          `${API_URL}/transaction/dashboard/traces`
         );
 
         const data = response.data?.data || {};
@@ -281,31 +277,31 @@ export default function TransactionTracePage() {
               </div>
             </section>
 
-           
-           {/* ✅ Transaction Flow Diagram */} 
-<div className="flex justify-center items-center w-full">
-  <svg
-    width="100%"
-    height="600"
-    viewBox="0 0 1200 600"
-    xmlns="http://www.w3.org/2000/svg"
-    className="max-w-full"
-  >
-    <defs>
-      <marker
-        id="arrow"
-        markerWidth="10"
-        markerHeight="10"
-        refX="8"
-        refY="3"
-        orient="auto"
-        markerUnits="strokeWidth"
-      >
-        <path d="M0,0 L0,6 L9,3 z" fill="#9E9E9E" />
-      </marker>
-    </defs>
 
-    <style>{`
+            {/* ✅ Transaction Flow Diagram */}
+            <div className="flex justify-center items-center w-full">
+              <svg
+                width="100%"
+                height="600"
+                viewBox="0 0 1200 600"
+                xmlns="http://www.w3.org/2000/svg"
+                className="max-w-full"
+              >
+                <defs>
+                  <marker
+                    id="arrow"
+                    markerWidth="10"
+                    markerHeight="10"
+                    refX="8"
+                    refY="3"
+                    orient="auto"
+                    markerUnits="strokeWidth"
+                  >
+                    <path d="M0,0 L0,6 L9,3 z" fill="#9E9E9E" />
+                  </marker>
+                </defs>
+
+                <style>{`
       text { font-family: 'Inter', sans-serif; }
       .stroke { stroke: #9E9E9E; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
       .strokeThin { stroke: #BDBDBD; stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
@@ -315,91 +311,91 @@ export default function TransactionTracePage() {
       .tiny { fill: #777; font-size: 11px; text-anchor: middle; }
     `}</style>
 
-    {/* Node A (gốc) */}
-    <circle cx="120" cy="300" r="20" className="nodeCircle" />
-    <text x="120" y="300" className="nodeLabel">A</text>
+                {/* Node A (gốc) */}
+                <circle cx="120" cy="300" r="20" className="nodeCircle" />
+                <text x="120" y="300" className="nodeLabel">A</text>
 
-    {/* A → A giữa */}
-    <path d="M140 300 H300" className="stroke" />
-    <text x="220" y="285" className="small">0.15 TON</text>
-    <text x="220" y="315" className="tiny">0xae42e5a4</text>
+                {/* A → A giữa */}
+                <path d="M140 300 H300" className="stroke" />
+                <text x="220" y="285" className="small">0.15 TON</text>
+                <text x="220" y="315" className="tiny">0xae42e5a4</text>
 
-    {/* Node A giữa */}
-    <circle cx="320" cy="300" r="22" className="nodeCircle" />
-    <text x="320" y="300" className="nodeLabel">A</text>
+                {/* Node A giữa */}
+                <circle cx="320" cy="300" r="22" className="nodeCircle" />
+                <text x="320" y="300" className="nodeLabel">A</text>
 
-    {/* A giữa → B1 */}
-    <path d="M342 300 H400 V180 H520" className="stroke" />
-    <text x="450" y="165" className="small">0.05 TON</text>
-    <text x="450" y="195" className="tiny">Jetton Transfer</text>
+                {/* A giữa → B1 */}
+                <path d="M342 300 H400 V180 H520" className="stroke" />
+                <text x="450" y="165" className="small">0.05 TON</text>
+                <text x="450" y="195" className="tiny">Jetton Transfer</text>
 
-    {/* A giữa → B2 */}
-    <path d="M342 300 H520" className="stroke" />
-    <text x="450" y="285" className="small">0.05 TON</text>
-    <text x="450" y="315" className="tiny">Jetton Transfer</text>
+                {/* A giữa → B2 */}
+                <path d="M342 300 H520" className="stroke" />
+                <text x="450" y="285" className="small">0.05 TON</text>
+                <text x="450" y="315" className="tiny">Jetton Transfer</text>
 
-    {/* A giữa → B3 */}
-    <path d="M342 300 H400 V420 H520" className="stroke" />
-    <text x="450" y="405" className="small">0.05 TON</text>
-    <text x="450" y="435" className="tiny">Jetton Transfer</text>
+                {/* A giữa → B3 */}
+                <path d="M342 300 H400 V420 H520" className="stroke" />
+                <text x="450" y="405" className="small">0.05 TON</text>
+                <text x="450" y="435" className="tiny">Jetton Transfer</text>
 
-    {/* Node B */}
-    <circle cx="540" cy="180" r="18" className="nodeCircle" />
-    <text x="540" y="180" className="nodeLabel">B</text>
+                {/* Node B */}
+                <circle cx="540" cy="180" r="18" className="nodeCircle" />
+                <text x="540" y="180" className="nodeLabel">B</text>
 
-    <circle cx="540" cy="300" r="18" className="nodeCircle" />
-    <text x="540" y="300" className="nodeLabel">B</text>
+                <circle cx="540" cy="300" r="18" className="nodeCircle" />
+                <text x="540" y="300" className="nodeLabel">B</text>
 
-    <circle cx="540" cy="420" r="18" className="nodeCircle" />
-    <text x="540" y="420" className="nodeLabel">B</text>
+                <circle cx="540" cy="420" r="18" className="nodeCircle" />
+                <text x="540" y="420" className="nodeLabel">B</text>
 
-    {/* B1 → D */}
-    <path d="M558 180 H640 V150 H790" className="strokeThin" />
-    <text x="715" y="135" className="small">0.04844 TON</text>
-    <text x="715" y="165" className="tiny">Jetton Internal Transfer</text>
-    <circle cx="810" cy="150" r="18" className="nodeCircle" />
-    <text x="810" y="150" className="nodeLabel">D</text>
+                {/* B1 → D */}
+                <path d="M558 180 H640 V150 H790" className="strokeThin" />
+                <text x="715" y="135" className="small">0.04844 TON</text>
+                <text x="715" y="165" className="tiny">Jetton Internal Transfer</text>
+                <circle cx="810" cy="150" r="18" className="nodeCircle" />
+                <text x="810" y="150" className="nodeLabel">D</text>
 
-    {/* B1 → A */}
-    <path d="M558 180 H640 V210 H790" className="strokeThin" />
-    <text x="715" y="195" className="small">0.04844 TON</text>
-    <text x="715" y="225" className="tiny">Jetton Internal Transfer</text>
-    <circle cx="810" cy="210" r="18" className="nodeCircle" />
-    <text x="810" y="210" className="nodeLabel">A</text>
+                {/* B1 → A */}
+                <path d="M558 180 H640 V210 H790" className="strokeThin" />
+                <text x="715" y="195" className="small">0.04844 TON</text>
+                <text x="715" y="225" className="tiny">Jetton Internal Transfer</text>
+                <circle cx="810" cy="210" r="18" className="nodeCircle" />
+                <text x="810" y="210" className="nodeLabel">A</text>
 
-    {/* B2 → F */}
-    <path d="M558 300 H640 V270 H790" className="strokeThin" />
-    <text x="715" y="255" className="small">0.04844 TON</text>
-    <text x="715" y="285" className="tiny">Jetton Internal Transfer</text>
-    <circle cx="810" cy="270" r="18" className="nodeCircle" />
-    <text x="810" y="270" className="nodeLabel">F</text>
+                {/* B2 → F */}
+                <path d="M558 300 H640 V270 H790" className="strokeThin" />
+                <text x="715" y="255" className="small">0.04844 TON</text>
+                <text x="715" y="285" className="tiny">Jetton Internal Transfer</text>
+                <circle cx="810" cy="270" r="18" className="nodeCircle" />
+                <text x="810" y="270" className="nodeLabel">F</text>
 
-    {/* B2 → A */}
-    <path d="M558 300 H640 V330 H790" className="strokeThin" />
-    <text x="715" y="315" className="small">0.04844 TON</text>
-    <text x="715" y="345" className="tiny">Jetton Internal Transfer</text>
-    <circle cx="810" cy="330" r="18" className="nodeCircle" />
-    <text x="810" y="330" className="nodeLabel">A</text>
+                {/* B2 → A */}
+                <path d="M558 300 H640 V330 H790" className="strokeThin" />
+                <text x="715" y="315" className="small">0.04844 TON</text>
+                <text x="715" y="345" className="tiny">Jetton Internal Transfer</text>
+                <circle cx="810" cy="330" r="18" className="nodeCircle" />
+                <text x="810" y="330" className="nodeLabel">A</text>
 
-    {/* B3 → H */}
-    <path d="M558 420 H640 V390 H790" className="strokeThin" />
-    <text x="715" y="375" className="small">0.04844 TON</text>
-    <text x="715" y="405" className="tiny">Jetton Internal Transfer</text>
-    <circle cx="810" cy="390" r="18" className="nodeCircle" />
-    <text x="810" y="390" className="nodeLabel">H</text>
+                {/* B3 → H */}
+                <path d="M558 420 H640 V390 H790" className="strokeThin" />
+                <text x="715" y="375" className="small">0.04844 TON</text>
+                <text x="715" y="405" className="tiny">Jetton Internal Transfer</text>
+                <circle cx="810" cy="390" r="18" className="nodeCircle" />
+                <text x="810" y="390" className="nodeLabel">H</text>
 
-    {/* B3 → G */}
-    <path d="M558 420 H640 V450 H790" className="strokeThin" />
-    <text x="715" y="435" className="small">0.04844 TON</text>
-    <text x="715" y="465" className="tiny">Jetton Internal Transfer</text>
-    <circle cx="810" cy="450" r="18" className="nodeCircle" />
-    <text x="810" y="450" className="nodeLabel">G</text>
-  </svg>
-</div>
+                {/* B3 → G */}
+                <path d="M558 420 H640 V450 H790" className="strokeThin" />
+                <text x="715" y="435" className="small">0.04844 TON</text>
+                <text x="715" y="465" className="tiny">Jetton Internal Transfer</text>
+                <circle cx="810" cy="450" r="18" className="nodeCircle" />
+                <text x="810" y="450" className="nodeLabel">G</text>
+              </svg>
+            </div>
 
 
-          
-           {/* ✅ Recent Transaction Flows (đã fix API) */}
+
+            {/* ✅ Recent Transaction Flows (đã fix API) */}
             <section className="rounded-2xl bg-white shadow-md border border-gray-100 p-6 mt-8">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-base font-semibold text-gray-900">
@@ -477,10 +473,9 @@ export default function TransactionTracePage() {
                           <td className="px-5 py-4 text-right font-medium text-gray-800">
                             {typeof item.transaction.amount === "number"
                               ? `${formatNumber(
-                                  item.transaction.amount
-                                )} ${
-                                  item.transaction.currency?.full_name ?? ""
-                                }`
+                                item.transaction.amount
+                              )} ${item.transaction.currency?.full_name ?? ""
+                              }`
                               : "-"}
                           </td>
                           <td className="px-5 py-4 text-right">
@@ -515,31 +510,31 @@ export default function TransactionTracePage() {
                 </table>
               </div>
 
-            {/* Pagination — luôn hiển thị kể cả chỉ có 1 trang */}
-<div className="flex items-center justify-between mt-6">
-  {/* Previous */}
-  <button
-    disabled
-    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
-  >
-    ← Previous
-  </button>
+              {/* Pagination — luôn hiển thị kể cả chỉ có 1 trang */}
+              <div className="flex items-center justify-between mt-6">
+                {/* Previous */}
+                <button
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
+                >
+                  ← Previous
+                </button>
 
-  {/* Page numbers */}
-  <div className="flex items-center gap-2">
-    <button className="w-8 h-8 rounded-lg bg-blue-600 text-white text-sm font-medium">
-      1
-    </button>
-  </div>
+                {/* Page numbers */}
+                <div className="flex items-center gap-2">
+                  <button className="w-8 h-8 rounded-lg bg-blue-600 text-white text-sm font-medium">
+                    1
+                  </button>
+                </div>
 
-  {/* Next */}
-  <button
-    disabled
-    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
-  >
-    Next →
-  </button>
-</div>
+                {/* Next */}
+                <button
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
 
             </section>
           </main>

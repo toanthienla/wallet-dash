@@ -25,11 +25,7 @@ export default function VolumeChart() {
         const url = `${API_URL}/transaction/dashboard/transaction-total-assets`
         console.log("📡 Fetching total assets from:", url)
 
-        const res = await axiosClient.get(url, {
-          headers: {
-            "Content-Type": "application/json",
-          }
-        })
+        const res = await axiosClient.get(url)
 
         console.log("✅ Fetched total assets:", res.data)
         const json = res.data
