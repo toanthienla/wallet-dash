@@ -31,6 +31,7 @@ interface WalletAsset {
 
 interface WalletDetail {
   userName: string;
+  userInitials: string;
   email: string;
   walletAddress: string;
   currentBalance: number;
@@ -39,6 +40,21 @@ interface WalletDetail {
   totalReceived: number;
   chartData: { date: string; balance: number }[];
   assets: WalletAsset[];
+}
+
+// Helper function to generate user info with full name and initials
+function generateUserInfo(userData: { first_name: string | null; last_name: string | null; username: string }) {
+  const fullName = [userData.first_name, userData.last_name]
+    .filter(Boolean)
+    .join(" ") || userData.username || "No user info";
+
+  const initials = fullName
+    .split(" ")
+    .map((n) => n[0]?.toUpperCase())
+    .join("")
+    .slice(0, 2);
+
+  return { fullName, initials };
 }
 
 // Skeleton loaders
@@ -179,8 +195,11 @@ export default function WalletDetailPage() {
           color: ["bg-green-500", "bg-orange-500", "bg-blue-500", "bg-purple-500"][i % 4],
         }));
 
+        const { fullName, initials } = generateUserInfo(apiData.user);
+
         setWallet({
-          userName: apiData.user.username,
+          userName: fullName,
+          userInitials: initials,
           email: apiData.user.email,
           walletAddress: apiData.wallet_address,
           currentBalance: totalAssets,
@@ -353,7 +372,7 @@ export default function WalletDetailPage() {
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
                     <span className="text-2xl font-bold text-blue-600">
-                      {wallet.userName.slice(0, 2).toUpperCase()}
+                      {wallet.userInitials}
                     </span>
                   </div>
                   <div>
@@ -533,12 +552,8 @@ export default function WalletDetailPage() {
                         className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
                       >
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${asset.color} bg-opacity-10`}
-                          >
-                            <span className="text-sm font-semibold text-gray-700">
-                              {asset.name.slice(0, 2).toUpperCase()}
-                            </span>
+                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+                            {asset.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">
