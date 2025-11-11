@@ -9,6 +9,103 @@ import MoneyFlowChart from "./MoneyFlowChart"
 import SubWalletTable from "./SubWalletTable"
 import Image from "next/image"
 
+// Skeleton loader for stat cards
+function StatCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+          <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
+          <div className="h-3 bg-gray-200 rounded w-40"></div>
+        </div>
+        <div className="w-10 h-10 bg-gray-200 rounded-lg ml-4"></div>
+      </div>
+    </div>
+  )
+}
+
+// Skeleton loader for system wallet panel
+function SystemWalletPanelSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 animate-pulse">
+      <div className="h-6 bg-gray-200 rounded w-40 mb-4"></div>
+      <div className="space-y-5">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-4 bg-gray-200 rounded w-24"></div>
+              <div className="h-5 bg-gray-200 rounded-full w-16"></div>
+            </div>
+            <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded w-40 mb-3"></div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-2.5 bg-gray-200 rounded-full"></div>
+              <div className="h-3 bg-gray-200 rounded w-8"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Skeleton loader for chart
+function ChartSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
+      <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
+      <div className="h-72 bg-gray-200 rounded"></div>
+    </div>
+  )
+}
+
+// Skeleton loader for table
+function TableSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
+      <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex gap-4 py-3 border-b border-gray-100 last:border-b-0">
+            <div className="h-4 bg-gray-200 rounded w-24"></div>
+            <div className="flex-1 h-4 bg-gray-200 rounded w-1/3"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/5"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Error state component
+function ErrorState() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
+      <div className="text-center">
+        <div className="mb-4">
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-1">No Wallet Data</h3>
+        <p className="text-gray-500">Unable to load wallet data. Please try again later.</p>
+      </div>
+    </div>
+  )
+}
+
 function SystemWalletPanel() {
   const [wallets, setWallets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -29,22 +126,6 @@ function SystemWalletPanel() {
     fetchWallets()
   }, [])
 
-  // Skeleton loader for wallet item
-  const WalletSkeleton = () => (
-    <div className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0 animate-pulse">
-      <div className="flex items-center gap-2 mb-2">
-        <div className="h-4 bg-gray-200 rounded w-24"></div>
-        <div className="h-5 bg-gray-200 rounded-full w-16"></div>
-      </div>
-      <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
-      <div className="h-3 bg-gray-200 rounded w-40 mb-3"></div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-2.5 bg-gray-200 rounded-full"></div>
-        <div className="h-3 bg-gray-200 rounded w-8"></div>
-      </div>
-    </div>
-  )
-
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
       <div className="flex items-center justify-between mb-4">
@@ -56,9 +137,20 @@ function SystemWalletPanel() {
       </div>
 
       {loading ? (
-        <div className="space-y-5">
-          {[1, 2, 3].map((i) => (
-            <WalletSkeleton key={i} />
+        <div className="space-y-5 animate-pulse">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-4 bg-gray-200 rounded w-24"></div>
+                <div className="h-5 bg-gray-200 rounded-full w-16"></div>
+              </div>
+              <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-40 mb-3"></div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-2.5 bg-gray-200 rounded-full"></div>
+                <div className="h-3 bg-gray-200 rounded w-8"></div>
+              </div>
+            </div>
           ))}
         </div>
       ) : (
@@ -116,51 +208,6 @@ function SystemWalletPanel() {
   )
 }
 
-// Skeleton loader for stat cards
-function StatCardSkeleton() {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
-          <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
-          <div className="h-3 bg-gray-200 rounded w-40"></div>
-        </div>
-        <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
-      </div>
-    </div>
-  )
-}
-
-// Skeleton loader for chart
-function ChartSkeleton() {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
-      <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
-      <div className="h-64 bg-gray-200 rounded"></div>
-    </div>
-  )
-}
-
-// Skeleton loader for table
-function TableSkeleton() {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
-      <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
-      <div className="space-y-3">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex gap-4 py-3 border-b border-gray-100 last:border-b-0">
-            <div className="h-4 bg-gray-200 rounded w-8"></div>
-            <div className="flex-1 h-4 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/5"></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function DashboardOverview() {
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -168,11 +215,15 @@ export default function DashboardOverview() {
     pendingCollection: 0,
     systemAlerts: 0,
   })
-  const [dataLoading, setDataLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true)
+        setError(false)
+
         const url = `${API_URL}/wallets/dashboard/list`
         console.log("📡 Fetching dashboard data from:", url)
 
@@ -190,13 +241,30 @@ export default function DashboardOverview() {
         })
       } catch (err: any) {
         console.error("❌ Error fetching dashboard data:", err.message)
+        setError(true)
       } finally {
-        setDataLoading(false)
+        setLoading(false)
       }
     }
 
     fetchData()
   }, [])
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col min-h-screen">
+          <AppHeader />
+          <main className="flex-1 p-6 lg:p-8">
+            <div className="max-w-full">
+              <ErrorState />
+            </div>
+          </main>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -205,57 +273,18 @@ export default function DashboardOverview() {
         <AppHeader />
         <main className="flex-1 p-6 lg:p-8">
           <div className="max-w-full">
-            {dataLoading ? (
-              <>
-                {/* Loading State */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left cards skeleton */}
-                  <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[1, 2, 3, 4].map((i) => (
-                      <StatCardSkeleton key={i} />
-                    ))}
-                  </div>
-
-                  {/* Right panel skeleton */}
-                  <div>
-                    <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 animate-pulse">
-                      <div className="h-6 bg-gray-200 rounded w-48 mb-4"></div>
-                      <div className="space-y-5">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="h-4 bg-gray-200 rounded w-24"></div>
-                              <div className="h-5 bg-gray-200 rounded-full w-16"></div>
-                            </div>
-                            <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
-                            <div className="h-3 bg-gray-200 rounded w-40 mb-3"></div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-2.5 bg-gray-200 rounded-full"></div>
-                              <div className="h-3 bg-gray-200 rounded w-8"></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Chart skeleton */}
-                <div className="mt-6">
-                  <ChartSkeleton />
-                </div>
-
-                {/* Table skeleton */}
-                <div className="mt-6">
-                  <TableSkeleton />
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Loaded State */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left cards */}
-                  <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left cards */}
+              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {loading ? (
+                  <>
+                    <StatCardSkeleton />
+                    <StatCardSkeleton />
+                    <StatCardSkeleton />
+                    <StatCardSkeleton />
+                  </>
+                ) : (
+                  <>
                     <StatCard
                       title="Total Users"
                       value={stats.totalUsers.toLocaleString()}
@@ -280,21 +309,36 @@ export default function DashboardOverview() {
                       subtitle="2 threshold warnings"
                       icon={<img src="/images/icons/System.svg" alt="System Icon" className="w-6 h-6" />}
                     />
-                  </div>
+                  </>
+                )}
+              </div>
 
-                  {/* Right panel */}
-                  <div>
-                    <SystemWalletPanel />
-                  </div>
-                </div>
+              {/* Right panel */}
+              <div>
+                {loading ? <SystemWalletPanelSkeleton /> : <SystemWalletPanel />}
+              </div>
+            </div>
 
-                {/* Charts and tables */}
+            {!loading && (
+              <>
                 <div className="mt-6">
                   <MoneyFlowChart />
                 </div>
 
                 <div className="mt-6">
                   <SubWalletTable />
+                </div>
+              </>
+            )}
+
+            {loading && (
+              <>
+                <div className="mt-6">
+                  <ChartSkeleton />
+                </div>
+
+                <div className="mt-6">
+                  <TableSkeleton />
                 </div>
               </>
             )}

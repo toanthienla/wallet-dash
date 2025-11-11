@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from "react"
-import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Download, CheckSquare, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { API_URL } from "@/utils/constants"
 import axiosClient from "@/utils/axiosClient"
@@ -83,7 +83,6 @@ export default function WalletTable({ loading: initialLoading = false }) {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(initialLoading)
   const [searchQuery, setSearchQuery] = useState("")
-  const [error, setError] = useState<string | null>(null)
 
   const perPage = 10
 
@@ -91,8 +90,6 @@ export default function WalletTable({ loading: initialLoading = false }) {
     const fetchWallets = async () => {
       try {
         setLoading(true)
-        setError(null)
-
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/list`)
         const data = res.data.data.wallets
 
@@ -119,8 +116,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
 
         setWallets(rows)
       } catch (err) {
-        console.error("❌ Error fetching wallets:", err)
-        setError("Failed to load wallet list")
+        console.error("Error fetching wallets:", err)
         setWallets([])
       } finally {
         setLoading(false)
@@ -144,35 +140,11 @@ export default function WalletTable({ loading: initialLoading = false }) {
     setPage(1)
   }
 
-  const handleExport = () => {
-    const csvContent = [
-      ["ID", "Name", "Status", "Transactions", "Amount", "Address"],
-      ...visible.map((r) => [r.id, r.name, r.status, r.transactions, r.amount, r.address]),
-    ]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-
-    link.setAttribute("href", url)
-    link.setAttribute("download", `wallets_${new Date().toISOString().split("T")[0]}.csv`)
-    link.style.visibility = "hidden"
-
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <div>
-          <h3 className="text-base font-semibold text-gray-900">Wallet List</h3>
-          <p className="text-sm text-gray-500 mt-1">{visible.length} wallets displayed</p>
-        </div>
+        <h3 className="text-base font-semibold text-gray-900">Wallet List</h3>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative w-full sm:w-64">
@@ -180,16 +152,12 @@ export default function WalletTable({ loading: initialLoading = false }) {
             <input
               value={searchQuery}
               onChange={handleSearchChange}
-              className="pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
               placeholder="Search by name, address..."
             />
           </div>
 
-          <button
-            onClick={handleExport}
-            disabled={loading || visible.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-700 transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-700 transition whitespace-nowrap">
             <Download size={16} />
             Export
           </button>
@@ -216,17 +184,6 @@ export default function WalletTable({ loading: initialLoading = false }) {
                   <TableRowSkeleton key={`skeleton-${i}`} />
                 ))}
               </>
-            ) : error ? (
-              <tr>
-                <td colSpan={6} className="text-center py-8 text-red-500">
-                  <div className="flex flex-col items-center justify-center">
-                    <svg className="h-12 w-12 text-red-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-sm font-medium">{error}</p>
-                  </div>
-                </td>
-              </tr>
             ) : visible.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center py-12 text-gray-500">
@@ -234,7 +191,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
                     <svg className="h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                     </svg>
-                    <p className="text-sm font-medium">No wallets found</p>
+                    No wallets found
                   </div>
                 </td>
               </tr>
@@ -246,7 +203,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-semibold text-blue-600">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600">
                         {r.initials}
                       </div>
                       <div>
@@ -266,7 +223,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
                   <td className="py-4 px-6 font-semibold text-gray-900">{r.amount}</td>
                   <td className="py-4 px-6">
                     <Link href={`/wallet-detail/${r.address}`}>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition font-medium">
+                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition">
                         View detail
                       </button>
                     </Link>

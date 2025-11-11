@@ -52,6 +52,33 @@ function BulkActionsSkeleton() {
   );
 }
 
+// Error state component
+function ErrorState() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
+      <div className="text-center">
+        <div className="mb-4">
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-1">No Wallet Data</h3>
+        <p className="text-gray-500">Unable to load wallet data. Please try again later.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function UserWalletPage() {
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
@@ -63,11 +90,13 @@ export default function UserWalletPage() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        setError(false);
 
         const response = await axiosClient.get(
           `${API_URL}/wallets/dashboard/list`
@@ -86,6 +115,7 @@ export default function UserWalletPage() {
         });
       } catch (error) {
         console.error("❌ Error fetching dashboard data:", error);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -93,6 +123,14 @@ export default function UserWalletPage() {
 
     fetchDashboardData();
   }, []);
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <ErrorState />
+      </div>
+    );
+  }
 
   const formatNumber = (num: number) => new Intl.NumberFormat("en-US").format(num);
   const formatCurrency = (num: number) =>
