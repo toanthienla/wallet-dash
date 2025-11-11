@@ -42,9 +42,8 @@ interface WalletDetail {
 }
 
 export default function WalletDetailPage() {
-  // const params = useParams();
-  // const walletAddress = params.id as string;
-  const walletAddress = "0xe39a611233c237ea006E5406dc1DEAce1ED38368";
+  const params = useParams();
+  const walletAddress = params.id as string;
 
   const [wallet, setWallet] = useState<WalletDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,14 +53,17 @@ export default function WalletDetailPage() {
 
   // --- Pagination State & Logic ---
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // số transaction hiển thị mỗi trang
+  const itemsPerPage = 10;
   const totalPages = Math.ceil(transactions.length / itemsPerPage);
   const paginatedTransactions = transactions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
+  // ✅ Fetch Wallet Details
   useEffect(() => {
+    if (!walletAddress) return;
+
     const fetchWallet = async () => {
       try {
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
@@ -75,7 +77,6 @@ export default function WalletDetailPage() {
           color: ["bg-green-500", "bg-orange-500", "bg-blue-500", "bg-purple-500"][i % 4],
         }));
 
-        // Không map chartData từ balances nữa
         setWallet({
           userName: apiData.user.username,
           email: apiData.user.email,
@@ -85,7 +86,7 @@ export default function WalletDetailPage() {
           totalWithdrawal: apiData.total_withdrawn,
           totalReceived: apiData.total_received,
           assets,
-          chartData: [], // tạm thời rỗng, sẽ fetch API chart riêng
+          chartData: [],
         });
       } catch {
         setWallet(null);
@@ -99,6 +100,8 @@ export default function WalletDetailPage() {
 
   // ✅ Fetch Transaction History
   useEffect(() => {
+    if (!walletAddress) return;
+
     const fetchTransactions = async () => {
       try {
         const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`);
@@ -127,20 +130,20 @@ export default function WalletDetailPage() {
 
   // ✅ Fetch Chart Data from statistic-total-assets API
   useEffect(() => {
+    if (!walletAddress) return;
+
     const fetchWalletChart = async () => {
       try {
         const res = await axiosClient.get(
           `${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`
         );
 
-        // map API mới về {date, balance}
         const chartData = res.data.labels.map((label: string, i: number) => ({
           date: new Date(label).toLocaleString(),
           balance: res.data.data[0].values[i],
         }));
 
-        // update wallet state với chartData
-        setWallet((prev) => prev ? { ...prev, chartData } : null);
+        setWallet((prev) => (prev ? { ...prev, chartData } : null));
       } catch (err) {
         console.error("Error fetching chart data:", err);
       }
@@ -210,16 +213,14 @@ export default function WalletDetailPage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
 
-                {/* Time range filter + Date range + Stat summary */}
                 <div className="flex items-center gap-4">
-                  {/* Time filter */}
                   <div className="flex items-center bg-gray-50 rounded-full border border-gray-200">
                     {["Daily", "Weekly", "Monthly"].map((label, i) => (
                       <button
                         key={i}
                         className={`px-3 py-1.5 text-sm font-medium rounded-full transition ${label === "Daily"
-                            ? "bg-blue-600 text-white shadow-sm"
-                            : "text-gray-600 hover:text-gray-900"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-gray-600 hover:text-gray-900"
                           }`}
                       >
                         {label}
@@ -227,7 +228,6 @@ export default function WalletDetailPage() {
                     ))}
                   </div>
 
-                  {/* Date range picker */}
                   <button className="flex items-center px-3 py-2 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -246,7 +246,6 @@ export default function WalletDetailPage() {
                     05 Feb – 06 March
                   </button>
 
-                  {/* Summary stats */}
                   <div className="flex items-center gap-6">
                     <div className="flex flex-col text-right">
                       <p className="text-sm text-gray-500">Avg. Deposit</p>
@@ -260,7 +259,6 @@ export default function WalletDetailPage() {
                 </div>
               </div>
 
-              {/* Chart */}
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={wallet.chartData}>
@@ -279,7 +277,6 @@ export default function WalletDetailPage() {
                 </ResponsiveContainer>
               </div>
             </div>
-
 
             {/* Assets Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -352,7 +349,6 @@ export default function WalletDetailPage() {
                         className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
                       >
                         <div className="flex items-center gap-3">
-                          {/* Có thể dùng icon thật nếu API có trả về link hình ảnh */}
                           <div
                             className={`w-8 h-8 rounded-full flex items-center justify-center ${asset.color} bg-opacity-10`}
                           >
@@ -377,9 +373,8 @@ export default function WalletDetailPage() {
                     ))
                   )}
                 </div>
-
               </div>
-            </div> {/* ✅ Đóng grid */}
+            </div>
 
             {/* Transaction History */}
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-8">
@@ -401,9 +396,17 @@ export default function WalletDetailPage() {
                   </thead>
                   <tbody>
                     {loadingTx ? (
-                      <tr><td colSpan={8} className="text-center py-6 text-gray-500">Loading...</td></tr>
+                      <tr>
+                        <td colSpan={8} className="text-center py-6 text-gray-500">
+                          Loading...
+                        </td>
+                      </tr>
                     ) : transactions.length === 0 ? (
-                      <tr><td colSpan={8} className="text-center py-6 text-gray-500">No transactions found</td></tr>
+                      <tr>
+                        <td colSpan={8} className="text-center py-6 text-gray-500">
+                          No transactions found
+                        </td>
+                      </tr>
                     ) : (
                       paginatedTransactions.map((t, i) => (
                         <tr key={i} className="border-b hover:bg-gray-50">
@@ -414,15 +417,21 @@ export default function WalletDetailPage() {
                           <td className="py-3 px-6 text-indigo-500">{t.asset}</td>
                           <td className="py-3 px-6">{t.address}</td>
                           <td className="py-3 px-6">
-                            <span className={`px-3 py-1 rounded-full text-xs ${t.status === "success"
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs ${t.status === "success"
                                 ? "bg-green-50 text-green-600"
                                 : t.status === "pending"
                                   ? "bg-blue-50 text-blue-600"
                                   : "bg-red-50 text-red-600"
-                              }`}>{t.status}</span>
+                                }`}
+                            >
+                              {t.status}
+                            </span>
                           </td>
                           <td className="py-3 px-6 text-right">
-                            <button className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs">View detail</button>
+                            <button className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs">
+                              View detail
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -434,7 +443,9 @@ export default function WalletDetailPage() {
               {/* Pagination */}
               <div className="flex items-center justify-between mt-6">
                 <button
-                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${currentPage === 1 ? "text-gray-400 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
+                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${currentPage === 1
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-50"
                     }`}
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
@@ -446,7 +457,9 @@ export default function WalletDetailPage() {
                   {Array.from({ length: totalPages || 1 }).map((_, i) => (
                     <button
                       key={i}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium ${i + 1 === currentPage ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"
+                      className={`w-8 h-8 rounded-lg text-sm font-medium ${i + 1 === currentPage
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 hover:bg-gray-100"
                         }`}
                       onClick={() => setCurrentPage(i + 1)}
                     >
@@ -456,7 +469,9 @@ export default function WalletDetailPage() {
                 </div>
 
                 <button
-                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${currentPage === totalPages ? "text-gray-400 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
+                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${currentPage === totalPages
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-50"
                     }`}
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
@@ -464,9 +479,7 @@ export default function WalletDetailPage() {
                   Next →
                 </button>
               </div>
-
             </section>
-
           </main>
         </div>
       </div>
