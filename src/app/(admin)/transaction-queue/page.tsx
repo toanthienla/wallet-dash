@@ -8,6 +8,22 @@ import MetricCard from "@/components/transaction-queue/MetricCard";
 import TransactionQueueTable from "@/components/transaction-queue/TransactionQueueTable";
 import { Search } from "lucide-react";
 
+// Skeleton loader for metric card
+function MetricCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+          <div className="h-8 bg-gray-200 rounded w-16 mb-2"></div>
+          <div className="h-3 bg-gray-200 rounded w-32"></div>
+        </div>
+        <div className="w-10 h-10 bg-gray-200 rounded-lg ml-4 flex-shrink-0"></div>
+      </div>
+    </div>
+  );
+}
+
 export default function TransactionQueuePage() {
   const [stats, setStats] = useState({
     pending: 0,
@@ -51,25 +67,30 @@ export default function TransactionQueuePage() {
     fetchData();
   }, []);
 
-  if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading...</div>;
-  }
-
   return (
     <main className="flex-1 p-6 lg:p-8">
       <div className="max-w-full">
         {/* === Metrics === */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <MetricCard title="Pending" value={stats.pending.toString()} iconSrc="/images/icons/TotalW.svg" />
-          <MetricCard title="Processing" value={stats.processing.toString()} iconSrc="/images/icons/Critical.svg" />
-          <MetricCard title="Completed" value={stats.completed.toString()} iconSrc="/images/icons/Critical.svg" />
-          <MetricCard title="Cancelled" value={stats.cancelled.toString()} iconSrc="/images/icons/Last.svg" />
+          {loading ? (
+            <>
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+            </>
+          ) : (
+            <>
+              <MetricCard title="Pending" value={stats.pending.toString()} iconSrc="/images/icons/TotalW.svg" />
+              <MetricCard title="Processing" value={stats.processing.toString()} iconSrc="/images/icons/Critical.svg" />
+              <MetricCard title="Completed" value={stats.completed.toString()} iconSrc="/images/icons/Critical.svg" />
+              <MetricCard title="Cancelled" value={stats.cancelled.toString()} iconSrc="/images/icons/Last.svg" />
+            </>
+          )}
         </div>
 
-
-
         {/* === Data Table === */}
-        <TransactionQueueTable />
+        <TransactionQueueTable loading={loading} />
       </div>
     </main>
   );
