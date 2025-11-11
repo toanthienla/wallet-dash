@@ -77,10 +77,10 @@ export default function TransactionQueueTable() {
               className="pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg w-64 focus:outline-none"
             />
             <img
-  src="/images/icons/Search.svg"
-  alt="Search icon"
-  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-/>
+              src="/images/icons/Search.svg"
+              alt="Search icon"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            />
 
           </div>
           <button className="flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
@@ -138,11 +138,10 @@ export default function TransactionQueueTable() {
             <button
               key={i}
               onClick={() => setPage(i + 1)}
-              className={`w-8 h-8 rounded-full text-sm font-medium transition ${
-                page === i + 1
+              className={`w-8 h-8 rounded-full text-sm font-medium transition ${page === i + 1
                   ? "bg-[#2563EB] text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+                }`}
             >
               {i + 1}
             </button>

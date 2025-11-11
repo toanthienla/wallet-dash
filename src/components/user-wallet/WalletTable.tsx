@@ -42,6 +42,21 @@ function StatusPill({ status }: { status: Row["status"] }) {
   )
 }
 
+// Helper function to generate user info with full name and initials
+function generateUserInfo(userData: { first_name: string | null; last_name: string | null }) {
+  const fullName = [userData.first_name, userData.last_name]
+    .filter(Boolean)
+    .join(" ") || "No user info"
+
+  const initials = fullName
+    .split(" ")
+    .map((n) => n[0]?.toUpperCase())
+    .join("")
+    .slice(0, 2)
+
+  return { fullName, initials }
+}
+
 export default function WalletTable() {
   const [wallets, setWallets] = useState<Row[]>([])
   const [page, setPage] = useState(1)
@@ -55,15 +70,7 @@ export default function WalletTable() {
         const data = res.data.data.wallets
 
         const rows = data.map((w: Wallet) => {
-          const fullName = [w.user.first_name, w.user.last_name]
-            .filter(Boolean)
-            .join(" ") || "No user info"
-
-          const initials = fullName
-            .split(" ")
-            .map((n) => n[0]?.toUpperCase())
-            .join("")
-            .slice(0, 2)
+          const { fullName, initials } = generateUserInfo(w.user)
 
           let status: Row["status"] = "Medium"
           if (w.is_initialized_passcode) status = "Active"
@@ -154,7 +161,10 @@ export default function WalletTable() {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="text-center py-10 text-gray-500">Loading wallets...</div>
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-500">Loading wallets...</p>
+        </div>
       </div>
     )
   }
