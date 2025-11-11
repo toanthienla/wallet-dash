@@ -23,6 +23,12 @@ const AppSidebar: React.FC = () => {
     return () => window.removeEventListener("toggle-sidebar", handler);
   }, []);
 
+  // Helper function to check if a link is active
+  const isLinkActive = (href: string) => {
+    // Exact match or starts with the href
+    return pathname === href || pathname?.startsWith(href + "/");
+  };
+
   // Dữ liệu menu gốc
   const menuData = useMemo(
     () => [
@@ -107,20 +113,18 @@ const AppSidebar: React.FC = () => {
         {filteredMenu.map((group, idx) => (
           <div key={idx}>
             <button
-              className={`flex items-center w-full px-3 py-2 rounded-xl transition-colors text-left font-medium ${
-                isCollapsed
-                  ? "justify-center"
-                  : "text-gray-900 hover:bg-blue-50 mb-1"
-              }`}
+              className={`flex items-center w-full px-3 py-2 rounded-xl transition-colors text-left font-medium ${isCollapsed
+                ? "justify-center"
+                : "text-gray-900 hover:bg-blue-50 mb-1"
+                }`}
               onClick={() => group.setOpen((v: boolean) => !v)}
             >
               <group.icon size={20} className="mr-3" />
               {!isCollapsed && group.title}
               {!isCollapsed && (
                 <ChevronDown
-                  className={`ml-auto transition-transform ${
-                    group.isOpen ? "rotate-180" : ""
-                  }`}
+                  className={`ml-auto transition-transform ${group.isOpen ? "rotate-180" : ""
+                    }`}
                   size={16}
                 />
               )}
@@ -132,11 +136,10 @@ const AppSidebar: React.FC = () => {
                   <Link
                     key={i}
                     href={link.href}
-                    className={`w-full text-left px-3 py-2 rounded-xl font-medium ${
-                      pathname?.startsWith(link.href)
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-900 hover:bg-blue-50"
-                    }`}
+                    className={`w-full text-left px-3 py-2 rounded-xl font-medium transition-colors ${isLinkActive(link.href)
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-gray-900 hover:bg-blue-50"
+                      }`}
                   >
                     {link.label}
                   </Link>
