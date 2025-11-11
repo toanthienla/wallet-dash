@@ -88,7 +88,8 @@ export default function WalletDetailPage() {
           assets,
           chartData: [],
         });
-      } catch {
+      } catch (error) {
+        console.error("Error fetching wallet:", error);
         setWallet(null);
       } finally {
         setLoading(false);
@@ -118,7 +119,8 @@ export default function WalletDetailPage() {
         }));
 
         setTransactions(formatted);
-      } catch {
+      } catch (error) {
+        console.error("Error fetching transactions:", error);
         setTransactions([]);
       } finally {
         setLoadingTx(false);
@@ -152,8 +154,37 @@ export default function WalletDetailPage() {
     fetchWalletChart();
   }, [walletAddress]);
 
-  if (loading) return <div>Loading...</div>;
-  if (!wallet) return <div>Wallet not found</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="flex">
+          <AppSidebar />
+          <div className="flex-1 min-h-screen">
+            <AppHeader />
+            <main className="px-8 py-8">
+              <div className="text-center py-10 text-gray-500">Loading wallet details...</div>
+            </main>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!wallet) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="flex">
+          <AppSidebar />
+          <div className="flex-1 min-h-screen">
+            <AppHeader />
+            <main className="px-8 py-8">
+              <div className="text-center py-10 text-gray-500">Wallet not found</div>
+            </main>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -294,14 +325,24 @@ export default function WalletDetailPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={wallet.assets.map((a) => ({ name: a.name, value: a.percentage }))}
+                          data={wallet.assets.map((a) => ({
+                            name: a.name,
+                            value: a.percentage,
+                          }))}
                           innerRadius={60}
                           outerRadius={80}
                           paddingAngle={2}
                           dataKey="value"
                         >
                           {wallet.assets.map((a, i) => (
-                            <Cell key={i} fill={a.color.replace("bg-", "#")} />
+                            <Cell
+                              key={i}
+                              fill={a.color
+                                .replace("bg-green-500", "#10b981")
+                                .replace("bg-orange-500", "#f97316")
+                                .replace("bg-blue-500", "#3b82f6")
+                                .replace("bg-purple-500", "#a855f7")}
+                            />
                           ))}
                         </Pie>
                       </PieChart>
@@ -317,7 +358,9 @@ export default function WalletDetailPage() {
                   <div className="space-y-3 ml-6">
                     {wallet.assets.map((a, i) => (
                       <div key={i} className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${a.color}`}></span>
+                        <span
+                          className={`w-2.5 h-2.5 rounded-full ${a.color}`}
+                        ></span>
                         <div>
                           <p className="text-sm font-medium text-gray-900">{a.name}</p>
                           <p className="text-xs text-gray-500">
@@ -357,7 +400,9 @@ export default function WalletDetailPage() {
                             </span>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{asset.name}</p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {asset.name}
+                            </p>
                             <p className="text-xs text-gray-500">
                               {asset.percentage}% of total
                             </p>
@@ -378,7 +423,9 @@ export default function WalletDetailPage() {
 
             {/* Transaction History */}
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-8">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Transaction History</h3>
+              <h3 className="text-base font-semibold text-gray-900 mb-4">
+                Transaction History
+              </h3>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-gray-700">
@@ -411,14 +458,18 @@ export default function WalletDetailPage() {
                       paginatedTransactions.map((t, i) => (
                         <tr key={i} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-6">{t.date}</td>
-                          <td className="py-3 px-6 text-blue-600 font-mono">{t.id}</td>
+                          <td className="py-3 px-6 text-blue-600 font-mono text-xs">
+                            {t.id.length > 20 ? `${t.id.slice(0, 20)}...` : t.id}
+                          </td>
                           <td className="py-3 px-6">{t.type}</td>
                           <td className="py-3 px-6">{t.amount}</td>
                           <td className="py-3 px-6 text-indigo-500">{t.asset}</td>
-                          <td className="py-3 px-6">{t.address}</td>
+                          <td className="py-3 px-6 text-xs">
+                            {t.address.length > 20 ? `${t.address.slice(0, 20)}...` : t.address}
+                          </td>
                           <td className="py-3 px-6">
                             <span
-                              className={`px-3 py-1 rounded-full text-xs ${t.status === "success"
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${t.status === "success"
                                 ? "bg-green-50 text-green-600"
                                 : t.status === "pending"
                                   ? "bg-blue-50 text-blue-600"
@@ -429,7 +480,7 @@ export default function WalletDetailPage() {
                             </span>
                           </td>
                           <td className="py-3 px-6 text-right">
-                            <button className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs">
+                            <button className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700 transition">
                               View detail
                             </button>
                           </td>
@@ -443,8 +494,8 @@ export default function WalletDetailPage() {
               {/* Pagination */}
               <div className="flex items-center justify-between mt-6">
                 <button
-                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${currentPage === 1
-                    ? "text-gray-400 cursor-not-allowed"
+                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition ${currentPage === 1
+                    ? "text-gray-400 cursor-not-allowed bg-gray-50"
                     : "text-gray-600 hover:bg-gray-50"
                     }`}
                   disabled={currentPage === 1}
@@ -457,7 +508,7 @@ export default function WalletDetailPage() {
                   {Array.from({ length: totalPages || 1 }).map((_, i) => (
                     <button
                       key={i}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium ${i + 1 === currentPage
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition ${i + 1 === currentPage
                         ? "bg-blue-600 text-white"
                         : "text-gray-600 hover:bg-gray-100"
                         }`}
@@ -469,12 +520,14 @@ export default function WalletDetailPage() {
                 </div>
 
                 <button
-                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${currentPage === totalPages
-                    ? "text-gray-400 cursor-not-allowed"
+                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition ${currentPage === totalPages
+                    ? "text-gray-400 cursor-not-allowed bg-gray-50"
                     : "text-gray-600 hover:bg-gray-50"
                     }`}
                   disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
                 >
                   Next →
                 </button>
