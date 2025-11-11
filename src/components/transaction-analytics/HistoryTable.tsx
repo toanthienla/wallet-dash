@@ -18,10 +18,7 @@ type Row = {
 async function fetchTransactions(): Promise<Row[]> {
   try {
     const res = await axiosClient.get(
-      `${API_URL}/transaction/dashboard/list`,
-      {
-        withCredentials: true,
-      }
+      `${API_URL}/transaction/dashboard/list`
     );
 
     const data = res.data;
