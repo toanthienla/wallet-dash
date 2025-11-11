@@ -25,7 +25,7 @@ const AppSidebar: React.FC = () => {
 
   // Helper function to check if a link is active
   const isLinkActive = (href: string) => {
-    // Exact match or starts with the href
+    // Check exact match or if pathname starts with href (including sub-routes)
     return pathname === href || pathname?.startsWith(href + "/");
   };
 
