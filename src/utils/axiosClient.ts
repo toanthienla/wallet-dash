@@ -8,9 +8,9 @@ axiosClient.interceptors.request.use((config) => {
   if (ACCESS_TOKEN) {
     config.headers.Authorization = `Bearer ${ACCESS_TOKEN}`;
   }
-  // if (PROXY_ACCESS_TOKEN) {
-  //   config.headers["X-Proxy-Authorization"] = `Bearer ${PROXY_ACCESS_TOKEN}`;
-  // }
+  if (PROXY_ACCESS_TOKEN) {
+    config.headers["X-Proxy-Authorization"] = `Bearer ${PROXY_ACCESS_TOKEN}`;
+  }
   return config;
 });
 
