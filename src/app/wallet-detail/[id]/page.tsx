@@ -42,10 +42,9 @@ interface WalletDetail {
 }
 
 export default function WalletDetailPage() {
-  // get id from route
-  const params = useParams() as { id?: string | string[] | undefined };
-  const walletAddress =
-    Array.isArray(params?.id) ? params.id[0] : params?.id ?? "";
+  // const params = useParams();
+  // const walletAddress = params.id as string;
+  const walletAddress = "0xe39a611233c237ea006E5406dc1DEAce1ED38368";
 
   const [wallet, setWallet] = useState<WalletDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,12 +61,9 @@ export default function WalletDetailPage() {
     currentPage * itemsPerPage
   );
 
-  // if no walletAddress yet, show loading early
   useEffect(() => {
-    if (!walletAddress) return;
     const fetchWallet = async () => {
       try {
-        setLoading(true);
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
         const apiData = res.data?.data;
 
@@ -103,10 +99,8 @@ export default function WalletDetailPage() {
 
   // ✅ Fetch Transaction History
   useEffect(() => {
-    if (!walletAddress) return;
     const fetchTransactions = async () => {
       try {
-        setLoadingTx(true);
         const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`);
         const data = res.data?.data?.transactions || [];
 
@@ -133,7 +127,6 @@ export default function WalletDetailPage() {
 
   // ✅ Fetch Chart Data from statistic-total-assets API
   useEffect(() => {
-    if (!walletAddress) return;
     const fetchWalletChart = async () => {
       try {
         const res = await axiosClient.get(
@@ -147,7 +140,7 @@ export default function WalletDetailPage() {
         }));
 
         // update wallet state với chartData
-        setWallet((prev) => (prev ? { ...prev, chartData } : null));
+        setWallet((prev) => prev ? { ...prev, chartData } : null);
       } catch (err) {
         console.error("Error fetching chart data:", err);
       }
@@ -156,7 +149,6 @@ export default function WalletDetailPage() {
     fetchWalletChart();
   }, [walletAddress]);
 
-  if (!walletAddress) return <div>Loading...</div>;
   if (loading) return <div>Loading...</div>;
   if (!wallet) return <div>Wallet not found</div>;
 
@@ -226,8 +218,8 @@ export default function WalletDetailPage() {
                       <button
                         key={i}
                         className={`px-3 py-1.5 text-sm font-medium rounded-full transition ${label === "Daily"
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "text-gray-600 hover:text-gray-900"
                           }`}
                       >
                         {label}
@@ -423,10 +415,10 @@ export default function WalletDetailPage() {
                           <td className="py-3 px-6">{t.address}</td>
                           <td className="py-3 px-6">
                             <span className={`px-3 py-1 rounded-full text-xs ${t.status === "success"
-                              ? "bg-green-50 text-green-600"
-                              : t.status === "pending"
-                                ? "bg-blue-50 text-blue-600"
-                                : "bg-red-50 text-red-600"
+                                ? "bg-green-50 text-green-600"
+                                : t.status === "pending"
+                                  ? "bg-blue-50 text-blue-600"
+                                  : "bg-red-50 text-red-600"
                               }`}>{t.status}</span>
                           </td>
                           <td className="py-3 px-6 text-right">
