@@ -154,7 +154,7 @@ export default function WalletTable() {
                 <td className="py-4 pr-6 text-gray-700">{r.transactions}</td>
                 <td className="py-4 pr-6 font-medium">{r.amount}</td>
                 <td className="py-4 pr-6">
-                  <Link href={`/wallet-detail/${r.address}`}>
+                  <Link href={`/wallet-detail/${r.id}`}>
                     <button className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700 transition">
                       View detail
                     </button>
