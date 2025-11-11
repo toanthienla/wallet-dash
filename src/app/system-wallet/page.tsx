@@ -131,8 +131,8 @@ export default function SystemWalletPage() {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">No Wallet Data</h3>
-          <p className="text-gray-500">Unable to load wallet data. Please try again later.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">No System Wallet Data</h3>
+          <p className="text-gray-500">Unable to load system wallet data. Please try again later.</p>
         </div>
       </div>
     );

@@ -72,8 +72,8 @@ function ErrorState() {
             />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-1">No Wallet Data</h3>
-        <p className="text-gray-500">Unable to load wallet data. Please try again later.</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-1">No User Wallet Data</h3>
+        <p className="text-gray-500">Unable to load user wallet data. Please try again later.</p>
       </div>
     </div>
   );
