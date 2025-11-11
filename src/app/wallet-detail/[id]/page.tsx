@@ -42,9 +42,10 @@ interface WalletDetail {
 }
 
 export default function WalletDetailPage() {
-  // const params = useParams();
-  // const walletAddress = params.id as string;
-  const walletAddress = "0xe39a611233c237ea006E5406dc1DEAce1ED38368";
+  // get id from route
+  const params = useParams() as { id?: string | string[] | undefined };
+  const walletAddress =
+    Array.isArray(params?.id) ? params.id[0] : params?.id ?? "";
 
   const [wallet, setWallet] = useState<WalletDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,9 +62,12 @@ export default function WalletDetailPage() {
     currentPage * itemsPerPage
   );
 
+  // if no walletAddress yet, show loading early
   useEffect(() => {
+    if (!walletAddress) return;
     const fetchWallet = async () => {
       try {
+        setLoading(true);
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
         const apiData = res.data?.data;
 
@@ -99,8 +103,10 @@ export default function WalletDetailPage() {
 
   // ✅ Fetch Transaction History
   useEffect(() => {
+    if (!walletAddress) return;
     const fetchTransactions = async () => {
       try {
+        setLoadingTx(true);
         const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`);
         const data = res.data?.data?.transactions || [];
 
@@ -127,6 +133,7 @@ export default function WalletDetailPage() {
 
   // ✅ Fetch Chart Data from statistic-total-assets API
   useEffect(() => {
+    if (!walletAddress) return;
     const fetchWalletChart = async () => {
       try {
         const res = await axiosClient.get(
@@ -140,7 +147,7 @@ export default function WalletDetailPage() {
         }));
 
         // update wallet state với chartData
-        setWallet((prev) => prev ? { ...prev, chartData } : null);
+        setWallet((prev) => (prev ? { ...prev, chartData } : null));
       } catch (err) {
         console.error("Error fetching chart data:", err);
       }
@@ -149,6 +156,7 @@ export default function WalletDetailPage() {
     fetchWalletChart();
   }, [walletAddress]);
 
+  if (!walletAddress) return <div>Loading...</div>;
   if (loading) return <div>Loading...</div>;
   if (!wallet) return <div>Wallet not found</div>;
 
@@ -197,7 +205,7 @@ export default function WalletDetailPage() {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {[ wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived ].map((v, i) => (
+              {[wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived].map((v, i) => (
                 <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6">
                   <p className="text-sm text-gray-500">{["Total Deposit", "Total Withdrawal", "Total Received"][i]}</p>
                   <p className="text-2xl font-semibold text-gray-900 mt-1">${v.toLocaleString()}</p>
@@ -205,81 +213,80 @@ export default function WalletDetailPage() {
               ))}
             </div>
 
-           {/* Chart Section */}
-<div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
-  <div className="flex items-center justify-between mb-4">
-    <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
+            {/* Chart Section */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
 
-    {/* Time range filter + Date range + Stat summary */}
-    <div className="flex items-center gap-4">
-      {/* Time filter */}
-      <div className="flex items-center bg-gray-50 rounded-full border border-gray-200">
-        {["Daily", "Weekly", "Monthly"].map((label, i) => (
-          <button
-            key={i}
-            className={`px-3 py-1.5 text-sm font-medium rounded-full transition ${
-              label === "Daily"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+                {/* Time range filter + Date range + Stat summary */}
+                <div className="flex items-center gap-4">
+                  {/* Time filter */}
+                  <div className="flex items-center bg-gray-50 rounded-full border border-gray-200">
+                    {["Daily", "Weekly", "Monthly"].map((label, i) => (
+                      <button
+                        key={i}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-full transition ${label === "Daily"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-gray-600 hover:text-gray-900"
+                          }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
 
-      {/* Date range picker */}
-      <button className="flex items-center px-3 py-2 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4 text-gray-400 mr-2"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-          />
-        </svg>
-        05 Feb – 06 March
-      </button>
+                  {/* Date range picker */}
+                  <button className="flex items-center px-3 py-2 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 text-gray-400 mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    05 Feb – 06 March
+                  </button>
 
-      {/* Summary stats */}
-      <div className="flex items-center gap-6">
-        <div className="flex flex-col text-right">
-          <p className="text-sm text-gray-500">Avg. Deposit</p>
-          <p className="text-base font-semibold text-gray-900">$212,142.12</p>
-        </div>
-        <div className="flex flex-col text-right">
-          <p className="text-sm text-gray-500">Avg. Interest</p>
-          <p className="text-base font-semibold text-gray-900">$30,321.23</p>
-        </div>
-      </div>
-    </div>
-  </div>
+                  {/* Summary stats */}
+                  <div className="flex items-center gap-6">
+                    <div className="flex flex-col text-right">
+                      <p className="text-sm text-gray-500">Avg. Deposit</p>
+                      <p className="text-base font-semibold text-gray-900">$212,142.12</p>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <p className="text-sm text-gray-500">Avg. Interest</p>
+                      <p className="text-base font-semibold text-gray-900">$30,321.23</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-  {/* Chart */}
-  <div className="h-80">
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={wallet.chartData}>
-        <CartesianGrid stroke="#F3F4F6" vertical={false} />
-        <XAxis dataKey="date" stroke="#9CA3AF" />
-        <YAxis stroke="#9CA3AF" />
-        <Tooltip />
-        <Line
-          type="monotone"
-          dataKey="balance"
-          stroke="#2563EB"
-          strokeWidth={2.5}
-          dot={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  </div>
-</div>
+              {/* Chart */}
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={wallet.chartData}>
+                    <CartesianGrid stroke="#F3F4F6" vertical={false} />
+                    <XAxis dataKey="date" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="balance"
+                      stroke="#2563EB"
+                      strokeWidth={2.5}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
 
             {/* Assets Section */}
@@ -334,7 +341,7 @@ export default function WalletDetailPage() {
                 </div>
               </div>
 
-               {/* Asset List */}
+              {/* Asset List */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-base font-semibold text-gray-900">Asset List</h3>
@@ -343,41 +350,41 @@ export default function WalletDetailPage() {
                   </button>
                 </div>
 
-               <div className="divide-y divide-gray-100">
-  {wallet.assets.length === 0 ? (
-    <p className="text-center py-6 text-gray-500">No assets found</p>
-  ) : (
-    wallet.assets.map((asset, i) => (
-      <div
-        key={i}
-        className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
-      >
-        <div className="flex items-center gap-3">
-          {/* Có thể dùng icon thật nếu API có trả về link hình ảnh */}
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center ${asset.color} bg-opacity-10`}
-          >
-            <span className="text-sm font-semibold text-gray-700">
-              {asset.name.slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-900">{asset.name}</p>
-            <p className="text-xs text-gray-500">
-              {asset.percentage}% of total
-            </p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-semibold text-gray-900">
-            ${Number(asset.amount).toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-500">—</p>
-        </div>
-      </div>
-    ))
-  )}
-</div>
+                <div className="divide-y divide-gray-100">
+                  {wallet.assets.length === 0 ? (
+                    <p className="text-center py-6 text-gray-500">No assets found</p>
+                  ) : (
+                    wallet.assets.map((asset, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Có thể dùng icon thật nếu API có trả về link hình ảnh */}
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center ${asset.color} bg-opacity-10`}
+                          >
+                            <span className="text-sm font-semibold text-gray-700">
+                              {asset.name.slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{asset.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {asset.percentage}% of total
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-gray-900">
+                            ${Number(asset.amount).toLocaleString()}
+                          </p>
+                          <p className="text-xs text-gray-500">—</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
 
               </div>
             </div> {/* ✅ Đóng grid */}
@@ -415,13 +422,12 @@ export default function WalletDetailPage() {
                           <td className="py-3 px-6 text-indigo-500">{t.asset}</td>
                           <td className="py-3 px-6">{t.address}</td>
                           <td className="py-3 px-6">
-                            <span className={`px-3 py-1 rounded-full text-xs ${
-                              t.status === "success"
-                                ? "bg-green-50 text-green-600"
-                                : t.status === "pending"
+                            <span className={`px-3 py-1 rounded-full text-xs ${t.status === "success"
+                              ? "bg-green-50 text-green-600"
+                              : t.status === "pending"
                                 ? "bg-blue-50 text-blue-600"
                                 : "bg-red-50 text-red-600"
-                            }`}>{t.status}</span>
+                              }`}>{t.status}</span>
                           </td>
                           <td className="py-3 px-6 text-right">
                             <button className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs">View detail</button>
@@ -434,41 +440,38 @@ export default function WalletDetailPage() {
               </div>
 
               {/* Pagination */}
-             <div className="flex items-center justify-between mt-6">
-              <button
-                className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${
-                  currentPage === 1 ? "text-gray-400 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
-                }`}
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              >
-                ← Previous
-              </button>
-
-              <div className="flex items-center gap-2">
-                {Array.from({ length: totalPages || 1 }).map((_, i) => (
-                  <button
-                    key={i}
-                    className={`w-8 h-8 rounded-lg text-sm font-medium ${
-                      i + 1 === currentPage ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"
+              <div className="flex items-center justify-between mt-6">
+                <button
+                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${currentPage === 1 ? "text-gray-400 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
                     }`}
-                    onClick={() => setCurrentPage(i + 1)}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  ← Previous
+                </button>
 
-              <button
-                className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${
-                  currentPage === totalPages ? "text-gray-400 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
-                }`}
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              >
-                Next →
-              </button>
-            </div>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: totalPages || 1 }).map((_, i) => (
+                    <button
+                      key={i}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium ${i + 1 === currentPage ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      onClick={() => setCurrentPage(i + 1)}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm ${currentPage === totalPages ? "text-gray-400 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
+                    }`}
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                >
+                  Next →
+                </button>
+              </div>
 
             </section>
 
