@@ -2,13 +2,13 @@
 import React, { useEffect, useState, useCallback } from "react"
 import axiosClient from "@/utils/axiosClient"
 import { API_URL } from "@/utils/constants"
-import { Download, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
+import { Download, ChevronLeft, ChevronRight } from "lucide-react"
 
 type WalletRow = {
   id: string
   user: string
   address: string
-  status: string
+  lastActive: string
   amount: string
 }
 
@@ -46,7 +46,7 @@ function TableRowSkeleton() {
       <td className="py-3"><div className="h-4 bg-gray-200 rounded w-8"></div></td>
       <td className="py-3"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
       <td className="py-3"><div className="h-4 bg-gray-200 rounded w-40"></div></td>
-      <td className="py-3"><div className="h-6 bg-gray-200 rounded-full w-16"></div></td>
+      <td className="py-3"><div className="h-4 bg-gray-200 rounded w-28"></div></td>
       <td className="py-3"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
       <td className="py-3 text-right"><div className="h-8 bg-gray-200 rounded w-20 ml-auto"></div></td>
     </tr>
@@ -59,10 +59,7 @@ function SubWalletTableSkeleton() {
       {/* Header skeleton */}
       <div className="flex items-center justify-between mb-5">
         <div className="h-5 bg-gray-200 rounded w-40"></div>
-        <div className="flex gap-2">
-          <div className="h-8 bg-gray-200 rounded w-8"></div>
-          <div className="h-8 bg-gray-200 rounded w-24"></div>
-        </div>
+        <div className="h-8 bg-gray-200 rounded w-24"></div>
       </div>
 
       {/* Table skeleton */}
@@ -73,7 +70,7 @@ function SubWalletTableSkeleton() {
               <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-6"></div></th>
               <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-16"></div></th>
               <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-32"></div></th>
-              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-12"></div></th>
+              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-20"></div></th>
               <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-16"></div></th>
               <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-12"></div></th>
             </tr>
@@ -145,11 +142,21 @@ export default function SubWalletTable() {
               ? username
               : `${w.user?.first_name || ""} ${w.user?.last_name || ""}`.trim() || "N/A"
 
+          // Format last active date - use created_at or updated_at if available
+          const lastActiveDate = w.updated_at || w.created_at || new Date().toISOString()
+          const lastActive = new Date(lastActiveDate).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+
           return {
             id: w.id || i.toString(),
             user: userDisplay,
             address: w.address || "-",
-            status: w.is_initialized_passcode ? "Active" : "Inactive",
+            lastActive: lastActive,
             amount: `$${Number(w.assets || 0).toLocaleString()}`,
           }
         })
@@ -192,12 +199,12 @@ export default function SubWalletTable() {
     try {
       setExporting(true)
       const csvContent = [
-        ["#", "User", "Wallet Address", "Status", "Amount"],
+        ["#", "User", "Wallet Address", "Last Active", "Amount"],
         ...rows.map((r, i) => [
           ((page - 1) * (pagination?.take || 10) + i + 1).toString(),
           r.user,
           r.address,
-          r.status,
+          r.lastActive,
           r.amount,
         ]),
       ]
@@ -218,11 +225,6 @@ export default function SubWalletTable() {
     }
   }
 
-  const handleRefresh = () => {
-    setPage(1)
-    fetchWallets(1)
-  }
-
   if (loading && rows.length === 0) {
     return <SubWalletTableSkeleton />
   }
@@ -232,13 +234,6 @@ export default function SubWalletTable() {
       <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 mt-6">
         <div className="text-center py-6">
           <p className="text-red-600 text-sm mb-4">Error loading wallets: {error}</p>
-          <button
-            onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
-          >
-            <RotateCcw size={16} />
-            Try Again
-          </button>
         </div>
       </div>
     )
@@ -249,24 +244,14 @@ export default function SubWalletTable() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h3 className="text-sm font-semibold text-gray-900">Sub-wallet with balance</h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleRefresh}
-            disabled={loading}
-            className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
-            title="Refresh"
-          >
-            <RotateCcw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={loading || exporting || rows.length === 0}
-            className="flex items-center space-x-2 border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-          >
-            <Download size={16} />
-            <span>{exporting ? "Exporting..." : "Export"}</span>
-          </button>
-        </div>
+        <button
+          onClick={handleExport}
+          disabled={loading || exporting || rows.length === 0}
+          className="flex items-center space-x-2 border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+        >
+          <Download size={16} />
+          <span>{exporting ? "Exporting..." : "Export"}</span>
+        </button>
       </div>
 
       {/* Table */}
@@ -277,7 +262,7 @@ export default function SubWalletTable() {
               <th className="pb-3 font-medium">#</th>
               <th className="pb-3 font-medium">User</th>
               <th className="pb-3 font-medium">Wallet Address</th>
-              <th className="pb-3 font-medium">Status</th>
+              <th className="pb-3 font-medium">Last Active</th>
               <th className="pb-3 font-medium">Amount</th>
               <th className="pb-3 font-medium text-right">Action</th>
             </tr>
@@ -291,16 +276,7 @@ export default function SubWalletTable() {
                   <td className="py-3 font-mono text-gray-600 text-xs truncate max-w-xs" title={r.address}>
                     {r.address}
                   </td>
-                  <td className="py-3">
-                    <span
-                      className={`px-2 py-0.5 text-xs rounded-full font-medium ${r.status === "Active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-500"
-                        }`}
-                    >
-                      {r.status}
-                    </span>
-                  </td>
+                  <td className="py-3 text-sm text-gray-600">{r.lastActive}</td>
                   <td className="py-3 font-semibold text-blue-600">{r.amount}</td>
                   <td className="py-3 text-right">
                     <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm shadow-sm transition">
