@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+
 import { API_URL } from "@/utils/constants";
 import axiosClient from "@/utils/axiosClient";
-import { Search } from "lucide-react";
 
 type Row = {
   id: string;
@@ -15,24 +15,41 @@ type Row = {
   status: "Processing" | "Completed" | "Failed";
 };
 
-type PaginationState = {
-  page: number
-  pages: number
-  has_next: boolean
-  has_prev: boolean
-  number_records: number
+async function fetchTransactions(): Promise<Row[]> {
+  try {
+    const res = await axiosClient.get(
+      `${API_URL}/transaction/dashboard/list`
+    );
+
+    const data = res.data;
+
+    const rows: Row[] = (data?.data?.transactions || []).map((tx: any) => ({
+      id: String(tx.id),
+      datetime: new Date(tx.date_created).toISOString(),
+      user: tx.user_id ?? tx.user_created ?? "unknown",
+      type:
+        tx.transaction_type?.name === "Receive"
+          ? "Deposit"
+          : tx.transaction_type?.name === "Transfer"
+            ? "Withdraw"
+            : "Redeem",
+      amount: tx.amount,
+      asset: tx.currency_data?.name?.toUpperCase() || "Unknown",
+      status:
+        tx.transaction_status === "success"
+          ? "Completed"
+          : tx.transaction_status === "processing"
+            ? "Processing"
+            : "Failed",
+    }));
+
+    return rows;
+  } catch (error) {
+    console.error("❌ Fetch transactions failed:", error);
+    throw error;
+  }
 }
 
-type FilterState = {
-  transaction_id: string;
-  wallet_address: string;
-  from_date: string;
-  to_date: string;
-  min_range: string;
-  max_range: string;
-}
-
-// ... (Status component remains the same)
 function Status({ s }: { s: Row["status"] }) {
   const map: Record<Row["status"], string> = {
     Processing: "bg-blue-50 text-blue-700",
@@ -45,102 +62,55 @@ function Status({ s }: { s: Row["status"] }) {
 }
 
 export default function HistoryTable() {
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // State for pagination
-  const [pagination, setPagination] = useState<PaginationState>({
-    page: 1,
-    pages: 1,
-    has_next: false,
-    has_prev: false,
-    number_records: 0
-  });
-  const take = 10;
-
-  // State for filters
-  const [filters, setFilters] = useState<FilterState>({
-    transaction_id: '',
-    wallet_address: '',
-    from_date: '',
-    to_date: '',
-    min_range: '',
-    max_range: ''
-  });
+  const [loading, setLoading] = useState(false);
+  const perPage = 10;
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      setLoading(true);
-      try {
-        const params: any = {
-          page: pagination.page,
-          take,
-          ...filters
-        };
-        // Remove empty params to keep URL clean
-        Object.keys(params).forEach(key => (params[key] === '' || params[key] === null) && delete params[key]);
+    setLoading(true);
+    fetchTransactions()
+      .then(setRows)
+      .catch((err) => console.error("Transaction fetch error:", err))
+      .finally(() => setLoading(false));
+  }, []);
 
-        const res = await axiosClient.get(`${API_URL}/transaction/dashboard/list`, { params });
-        const data = res.data.data;
+  const filtered = useMemo(() => {
+    if (!query) return rows;
+    return rows.filter((r) => r.id.includes(query) || r.user.includes(query));
+  }, [query, rows]);
 
-        const newRows: Row[] = (data?.transactions || []).map((tx: any) => ({
-          id: String(tx.id),
-          datetime: new Date(tx.date_created).toISOString(),
-          user: tx.user_id ?? tx.user_created ?? "unknown",
-          type: tx.transaction_type?.name === "Receive" ? "Deposit" : tx.transaction_type?.name === "Transfer" ? "Withdraw" : "Redeem",
-          amount: tx.amount,
-          asset: tx.currency?.name?.toUpperCase() || "Unknown",
-          status: tx.transaction_status === "success" ? "Completed" : tx.transaction_status === "processing" ? "Processing" : "Failed",
-        }));
-
-        setRows(newRows);
-
-        if (data.paginated) {
-          setPagination({
-            page: data.paginated.page || 1,
-            pages: data.paginated.pages || 1,
-            has_next: data.paginated.has_next || false,
-            has_prev: data.paginated.has_prev || false,
-            number_records: data.paginated.number_records || 0
-          });
-        }
-      } catch (error) {
-        console.error("❌ Fetch transactions failed:", error);
-        setRows([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    const handler = setTimeout(() => {
-      fetchTransactions();
-    }, 500); // Debounce filter changes
-
-    return () => clearTimeout(handler);
-
-  }, [pagination.page, filters]);
-
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-    setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on filter change
-  };
-
-  const setPage = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-  }
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const visible = filtered.slice((page - 1) * perPage, page * perPage);
 
   return (
     <div>
       <div className="bg-white rounded-lg border border-gray-100 p-4 mb-4">
-        {/* Filter Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <input name="transaction_id" value={filters.transaction_id} onChange={handleFilterChange} placeholder="Transaction ID" className="px-4 py-2 border rounded-lg text-sm" />
-          <input name="wallet_address" value={filters.wallet_address} onChange={handleFilterChange} placeholder="Wallet Address" className="px-4 py-2 border rounded-lg text-sm" />
-          <input name="from_date" type="date" value={filters.from_date} onChange={handleFilterChange} className="px-4 py-2 border rounded-lg text-sm text-gray-500" />
-          <input name="to_date" type="date" value={filters.to_date} onChange={handleFilterChange} className="px-4 py-2 border rounded-lg text-sm text-gray-500" />
-          <input name="min_range" type="number" value={filters.min_range} onChange={handleFilterChange} placeholder="Min Amount" className="px-4 py-2 border rounded-lg text-sm" />
-          <input name="max_range" type="number" value={filters.max_range} onChange={handleFilterChange} placeholder="Max Amount" className="px-4 py-2 border rounded-lg text-sm" />
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-gray-800">Transaction History</h3>
+            <div className="text-sm text-gray-400">Completed transaction records</div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search..."
+                className="pl-10 pr-4 py-2 border border-gray-200 rounded-full text-sm w-80 shadow-sm"
+              />
+              <img
+                src="/images/icons/Search.svg"
+                alt="Search icon"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+              />
+            </div>
+            <button className="flex items-center px-3 py-2 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50">
+              <img src="/images/icons/Calendar.svg" alt="calendar" width={16} height={16} />
+              <span className="ml-2">05 Feb - 06 March</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -151,27 +121,54 @@ export default function HistoryTable() {
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="text-gray-400 bg-white border-b">
-                <th className="py-3 px-6 font-medium">Date/time</th>
-                <th className="py-3 px-6 font-medium">Transaction ID</th>
-                <th className="py-3 px-6 font-medium">User ID</th>
-                <th className="py-3 px-6 font-medium">Type</th>
-                <th className="py-3 px-6 font-medium">Amount</th>
-                <th className="py-3 px-6 font-medium">Asset Type</th>
-                <th className="py-3 px-6 font-medium">Status</th>
-                <th className="py-3 px-6 font-medium">Action</th>
+                <th className="py-3 px-6 font-medium text-left">Date/time</th>
+                <th className="py-3 px-6 font-medium text-left">Transaction ID</th>
+                <th className="py-3 px-6 font-medium text-left">User ID</th>
+                <th className="py-3 px-6 font-medium text-left">Type</th>
+                <th className="py-3 px-6 font-medium text-left">Amount</th>
+                <th className="py-3 px-6 font-medium text-left">Asset Type</th>
+                <th className="py-3 px-6 font-medium text-left">Status</th>
+                <th className="py-3 px-6 font-medium text-left">Action</th>
               </tr>
             </thead>
             <tbody className="text-gray-700">
-              {rows.map((r, idx) => (
+              {visible.map((r, idx) => (
                 <tr key={r.id + idx} className="border-b hover:bg-gray-50">
-                  <td className="py-5 px-6">{new Date(r.datetime).toLocaleString()}</td>
-                  <td className="py-5 px-6 font-mono">{r.id}</td>
-                  <td className="py-5 px-6 break-words">{r.user}</td>
-                  <td className="py-5 px-6"><span className={`inline-block px-3 py-1 rounded-full ${r.type === "Deposit" ? "bg-green-50 text-green-600" : r.type === "Withdraw" ? "bg-red-50 text-red-600" : "bg-pink-50 text-pink-600"}`}>{r.type}</span></td>
-                  <td className="py-5 px-6 font-semibold">{r.amount}</td>
-                  <td className="py-5 px-6"><span className="inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-600">{r.asset}</span></td>
-                  <td className="py-5 px-6"><Status s={r.status} /></td>
-                  <td className="py-5 px-6"><button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">View detail</button></td>
+                  <td className="py-5 px-6 text-sm text-gray-600">
+                    {new Intl.DateTimeFormat("en-GB", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    }).format(new Date(r.datetime))}
+                  </td>
+
+                  <td className="py-5 px-6 font-mono text-sm text-gray-800">{r.id}</td>
+                  <td className="py-5 px-6 text-sm text-gray-700 break-words">{r.user}</td>
+                  <td className="py-5 px-6 text-sm">
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-sm ${r.type === "Deposit"
+                        ? "bg-green-50 text-green-600"
+                        : r.type === "Withdraw"
+                          ? "bg-red-50 text-red-600"
+                          : "bg-pink-50 text-pink-600"
+                        }`}
+                    >
+                      {r.type}
+                    </span>
+                  </td>
+                  <td className="py-5 px-6 text-sm font-semibold text-gray-800">{r.amount}</td>
+                  <td className="py-5 px-6 text-sm">
+                    <span className="inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-sm">
+                      {r.asset}
+                    </span>
+                  </td>
+                  <td className="py-5 px-6 text-sm">
+                    <Status s={r.status} />
+                  </td>
+                  <td className="py-5 px-6">
+                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                      View detail
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -179,13 +176,49 @@ export default function HistoryTable() {
         </div>
       )}
 
-      {/* Pagination */}
+      {/* Pagination — always display */}
       <div className="flex items-center justify-between mt-6">
-        <button onClick={() => setPage(pagination.page - 1)} disabled={!pagination.has_prev || loading} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition disabled:text-gray-400 disabled:cursor-not-allowed`}><span>←</span> Previous</button>
+        {/* Previous */}
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${page === 1
+            ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+            : "text-gray-700 border-gray-200 hover:bg-gray-50"
+            }`}
+        >
+          <span>←</span>
+          <span>Previous</span>
+        </button>
+
+        {/* Page numbers */}
         <div className="flex items-center space-x-1">
-          {Array.from({ length: pagination.pages }).map((_, i) => (<button key={i} onClick={() => setPage(i + 1)} className={`w-8 h-8 rounded-full text-sm font-medium transition ${pagination.page === i + 1 ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}>{i + 1}</button>))}
+          {Array.from({ length: totalPages }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i + 1)}
+              className={`w-8 h-8 rounded-full text-sm font-medium transition ${page === i + 1
+                ? "bg-blue-600 text-white cursor-default"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+            >
+              {i + 1}
+            </button>
+          ))}
         </div>
-        <button onClick={() => setPage(pagination.page + 1)} disabled={!pagination.has_next || loading} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition disabled:text-gray-400 disabled:cursor-not-allowed`}>Next <span>→</span></button>
+
+        {/* Next */}
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${page === totalPages
+            ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+            : "text-gray-700 border-gray-200 hover:bg-gray-50"
+            }`}
+        >
+          <span>Next</span>
+          <span>→</span>
+        </button>
       </div>
     </div>
   );

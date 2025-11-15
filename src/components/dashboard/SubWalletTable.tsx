@@ -12,29 +12,51 @@ type WalletRow = {
   amount: string
 }
 
+type ApiResponse = {
+  page: number
+  pages: number
+  has_next: boolean
+  has_prev: boolean
+  number_records: number
+  take: number
+  from_date?: string
+  to_date?: string
+  data: WalletRow[]
+}
+
 export default function SubWalletTable() {
   const [rows, setRows] = useState<WalletRow[]>([])
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
-  const perPage = 10
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [numberRecords, setNumberRecords] = useState(0)
+  const [take, setTake] = useState(10)
+  const [fromDate, setFromDate] = useState<string>("")
+  const [toDate, setToDate] = useState<string>("")
 
   useEffect(() => {
     const fetchWallets = async () => {
       try {
         const url = `${API_URL}/wallets/dashboard/list`
-        console.log("📡 Fetching:", url)
+        const params = new URLSearchParams({
+          page: page.toString(),
+          take: take.toString(),
+        })
 
-        const res = await axiosClient.get(url)
-        console.log("✅ API raw data:", res.data)
+        if (fromDate) params.append("from_date", fromDate)
+        if (toDate) params.append("to_date", toDate)
 
-        const data = res.data?.data || {}
-        const walletList =
-          data.wallets ||
-          data.list ||
-          data.items ||
-          (Array.isArray(data) ? data : [])
+        const fullUrl = `${url}?${params.toString()}`
+        console.log("📡 Fetching:", fullUrl)
 
-        const wallets = walletList.map((w: any, i: number) => ({
+        const res = await axiosClient.get(fullUrl)
+        console.log("✅ API response:", res.data)
+
+        const apiData: ApiResponse = res.data?.data || res.data
+
+        // Map wallet data
+        const wallets = (apiData.data || []).map((w: any, i: number) => ({
           id: w.id || i.toString(),
           user: w.user?.username || w.username || "N/A",
           address: w.address || "-",
@@ -43,21 +65,36 @@ export default function SubWalletTable() {
         }))
 
         setRows(wallets)
-
-        const total = data.paginated?.total || walletList.length
-        const totalPages = Math.max(1, Math.ceil(total / perPage))
-        setPages(totalPages)
-
-        if (page > totalPages) setPage(totalPages)
+        setPage(apiData.page || 1)
+        setPages(apiData.pages || 1)
+        setHasNext(apiData.has_next || false)
+        setHasPrev(apiData.has_prev || false)
+        setNumberRecords(apiData.number_records || 0)
+        setTake(apiData.take || 10)
       } catch (err: any) {
         console.error("❌ Error fetching sub-wallets:", err.message)
+        setRows([])
       }
     }
 
     fetchWallets()
-  }, [page])
+  }, [page, take, fromDate, toDate])
 
-  const visible = rows.slice((page - 1) * perPage, page * perPage)
+  const handlePrevious = () => {
+    if (hasPrev) {
+      setPage((p) => Math.max(1, p - 1))
+    }
+  }
+
+  const handleNext = () => {
+    if (hasNext) {
+      setPage((p) => p + 1)
+    }
+  }
+
+  const handlePageClick = (pageNum: number) => {
+    setPage(pageNum)
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 mt-6">
@@ -69,6 +106,38 @@ export default function SubWalletTable() {
           <Download size={16} />
           <span>Export List</span>
         </button>
+      </div>
+
+      {/* Date Filter Section */}
+      <div className="flex gap-4 mb-5">
+        <div className="flex flex-col">
+          <label className="text-xs font-medium text-gray-600 mb-1">
+            From Date
+          </label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value)
+              setPage(1)
+            }}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-xs font-medium text-gray-600 mb-1">
+            To Date
+          </label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => {
+              setToDate(e.target.value)
+              setPage(1)
+            }}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -84,10 +153,10 @@ export default function SubWalletTable() {
             </tr>
           </thead>
           <tbody>
-            {visible.length > 0 ? (
-              visible.map((r, i) => (
+            {rows.length > 0 ? (
+              rows.map((r, i) => (
                 <tr key={r.id} className="border-t border-gray-100">
-                  <td className="py-3">{(page - 1) * perPage + i + 1}</td>
+                  <td className="py-3">{(page - 1) * take + i + 1}</td>
                   <td className="py-3">{r.user}</td>
                   <td className="py-3 font-mono text-gray-600">{r.address}</td>
                   <td className="py-3">
@@ -124,13 +193,18 @@ export default function SubWalletTable() {
         </table>
       </div>
 
-      {/* ✅ Pagination luôn hiện, kể cả khi chỉ có 1 trang */}
+      {/* Records Info */}
+      <div className="text-xs text-gray-600 mt-4">
+        Showing {rows.length} of {numberRecords} records
+      </div>
+
+      {/* Pagination */}
       <div className="flex items-center justify-between mt-5">
         {/* Previous */}
         <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-          className={`flex items-center space-x-1 text-sm border px-3 py-1.5 rounded-lg transition ${page === 1
+          onClick={handlePrevious}
+          disabled={!hasPrev}
+          className={`flex items-center space-x-1 text-sm border px-3 py-1.5 rounded-lg transition ${!hasPrev
             ? "text-gray-400 border-gray-200 cursor-not-allowed"
             : "text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
@@ -147,7 +221,7 @@ export default function SubWalletTable() {
             return (
               <button
                 key={pageNum}
-                onClick={() => setPage(pageNum)}
+                onClick={() => handlePageClick(pageNum)}
                 disabled={isCurrent}
                 className={`w-8 h-8 rounded-lg text-sm font-medium transition ${isCurrent
                   ? "bg-blue-600 text-white cursor-default"
@@ -162,9 +236,9 @@ export default function SubWalletTable() {
 
         {/* Next */}
         <button
-          onClick={() => setPage((p) => Math.min(pages, p + 1))}
-          disabled={page === pages}
-          className={`flex items-center space-x-1 text-sm border px-3 py-1.5 rounded-lg transition ${page === pages
+          onClick={handleNext}
+          disabled={!hasNext}
+          className={`flex items-center space-x-1 text-sm border px-3 py-1.5 rounded-lg transition ${!hasNext
             ? "text-gray-400 border-gray-200 cursor-not-allowed"
             : "text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
