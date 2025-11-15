@@ -57,6 +57,21 @@ function generateUserInfo(userData: { first_name: string | null; last_name: stri
   return { fullName, initials };
 }
 
+// --- Dynamic Color Generation ---
+const COLORS = [
+  "#10b981", // green-500
+  "#f97316", // orange-500
+  "#3b82f6", // blue-500
+  "#a855f7", // purple-500
+  "#ef4444", // red-500
+  "#f59e0b", // amber-500
+];
+
+function getAssetColor(index: number) {
+  return COLORS[index % COLORS.length];
+}
+
+
 // Skeleton loaders
 function UserInfoCardSkeleton() {
   return (
@@ -187,12 +202,15 @@ export default function WalletDetailPage() {
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
         const apiData = res.data?.data;
 
-        const totalAssets = apiData.assets;
+        // FIX: Calculate total balance from the 'balances' array
+        const totalAssetsValue = apiData.balances.reduce((sum: number, asset: any) => sum + asset.total_value, 0);
+
         const assets = apiData.balances.map((b: any, i: number) => ({
           name: b.currency.name,
           amount: b.assets.toFixed(4),
-          percentage: parseFloat(((b.assets / totalAssets) * 100).toFixed(2)),
-          color: ["bg-green-500", "bg-orange-500", "bg-blue-500", "bg-purple-500"][i % 4],
+          // FIX: Prevent division by zero
+          percentage: totalAssetsValue > 0 ? parseFloat(((b.total_value / totalAssetsValue) * 100).toFixed(2)) : 0,
+          color: getAssetColor(i),
         }));
 
         const { fullName, initials } = generateUserInfo(apiData.user);
@@ -202,7 +220,7 @@ export default function WalletDetailPage() {
           userInitials: initials,
           email: apiData.user.email,
           walletAddress: apiData.wallet_address,
-          currentBalance: totalAssets,
+          currentBalance: totalAssetsValue, // FIX: Use calculated total
           totalDeposit: apiData.total_deposit,
           totalWithdrawal: apiData.total_withdrawn,
           totalReceived: apiData.total_received,
@@ -234,7 +252,8 @@ export default function WalletDetailPage() {
           id: tx.hash ?? "-",
           type: tx.transaction_type?.name ?? "-",
           amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
-          asset: tx.currency_data?.full_name || tx.currency_slug.toUpperCase(),
+          // FIX: Correctly access the asset full name
+          asset: tx.currency?.full_name || tx.currency_slug.toUpperCase(),
           address: tx.from_address || tx.to_address || "-",
           status: tx.transaction_status,
         }));
@@ -261,12 +280,16 @@ export default function WalletDetailPage() {
           `${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`
         );
 
-        const chartData = res.data.labels.map((label: string, i: number) => ({
-          date: new Date(label).toLocaleString(),
-          balance: res.data.data[0].values[i],
-        }));
-
-        setWallet((prev) => (prev ? { ...prev, chartData } : null));
+        if (res.data.labels && res.data.data[0]?.values) {
+          const chartData = res.data.labels.map((label: string, i: number) => ({
+            date: new Date(label).toLocaleDateString(), // Use toLocaleDateString for cleaner date format
+            balance: res.data.data[0].values[i],
+          }));
+          setWallet((prev) => (prev ? { ...prev, chartData } : null));
+        } else {
+          // Handle case with no chart data
+          setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
+        }
       } catch (err) {
         console.error("Error fetching chart data:", err);
       }
@@ -451,21 +474,27 @@ export default function WalletDetailPage() {
               </div>
 
               <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={wallet.chartData}>
-                    <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                    <XAxis dataKey="date" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="balance"
-                      stroke="#2563EB"
-                      strokeWidth={2.5}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {wallet.chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={wallet.chartData}>
+                      <CartesianGrid stroke="#F3F4F6" vertical={false} />
+                      <XAxis dataKey="date" stroke="#9CA3AF" />
+                      <YAxis stroke="#9CA3AF" />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="balance"
+                        stroke="#2563EB"
+                        strokeWidth={2.5}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">No statistical data available.</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -497,11 +526,7 @@ export default function WalletDetailPage() {
                           {wallet.assets.map((a, i) => (
                             <Cell
                               key={i}
-                              fill={a.color
-                                .replace("bg-green-500", "#10b981")
-                                .replace("bg-orange-500", "#f97316")
-                                .replace("bg-blue-500", "#3b82f6")
-                                .replace("bg-purple-500", "#a855f7")}
+                              fill={a.color}
                             />
                           ))}
                         </Pie>
@@ -519,7 +544,8 @@ export default function WalletDetailPage() {
                     {wallet.assets.map((a, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <span
-                          className={`w-2.5 h-2.5 rounded-full ${a.color}`}
+                          className={`w-2.5 h-2.5 rounded-full`}
+                          style={{ backgroundColor: a.color }}
                         ></span>
                         <div>
                           <p className="text-sm font-medium text-gray-900">{a.name}</p>
