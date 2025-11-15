@@ -1,8 +1,8 @@
 "use client"
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import axiosClient from "@/utils/axiosClient"
 import { API_URL } from "@/utils/constants"
-import { Download, ChevronLeft, ChevronRight } from "lucide-react"
+import { Download, ChevronLeft, ChevronRight, Search, Filter, RotateCcw } from "lucide-react"
 
 type WalletRow = {
   id: string
@@ -36,24 +36,46 @@ type ApiResponse = {
   timestamp: string
 }
 
+// Table skeleton loader
+function TableRowSkeleton() {
+  return (
+    <tr className="border-t border-gray-100 animate-pulse">
+      <td className="py-3"><div className="h-4 bg-gray-200 rounded w-8"></div></td>
+      <td className="py-3"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+      <td className="py-3"><div className="h-4 bg-gray-200 rounded w-40"></div></td>
+      <td className="py-3"><div className="h-6 bg-gray-200 rounded-full w-16"></div></td>
+      <td className="py-3"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+      <td className="py-3 text-right"><div className="h-8 bg-gray-200 rounded w-20 ml-auto"></div></td>
+    </tr>
+  )
+}
+
 export default function SubWalletTable() {
   const [rows, setRows] = useState<WalletRow[]>([])
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState<PaginationData | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all")
+  const [lastSyncTime, setLastSyncTime] = useState<string>("")
 
-  useEffect(() => {
-    const fetchWallets = async () => {
+  const fetchWallets = useCallback(
+    async (pageNum: number = 1) => {
       try {
         setLoading(true)
         setError(null)
 
         const url = `${API_URL}/wallets/dashboard/list`
         const params = new URLSearchParams({
-          page: page.toString(),
+          page: pageNum.toString(),
           take: "10",
         })
+
+        if (searchQuery) {
+          params.append("keyword", searchQuery)
+        }
 
         const fullUrl = `${url}?${params.toString()}`
         console.log("📡 Fetching:", fullUrl)
@@ -66,7 +88,16 @@ export default function SubWalletTable() {
         }
 
         const apiData = res.data.data
-        const walletList = apiData.wallets || []
+        let walletList = apiData.wallets || []
+
+        // Apply status filter
+        if (statusFilter !== "all") {
+          walletList = walletList.filter(
+            (w) =>
+              (statusFilter === "active" && w.is_initialized_passcode) ||
+              (statusFilter === "inactive" && !w.is_initialized_passcode)
+          )
+        }
 
         // Map wallet data
         const wallets = walletList.map((w: any, i: number) => {
@@ -87,6 +118,8 @@ export default function SubWalletTable() {
 
         setRows(wallets)
         setPagination(apiData.paginated)
+        setPage(apiData.paginated.page)
+        setLastSyncTime(new Date().toLocaleTimeString())
       } catch (err: any) {
         console.error("❌ Error fetching sub-wallets:", err.message)
         setError(err.message)
@@ -94,10 +127,13 @@ export default function SubWalletTable() {
       } finally {
         setLoading(false)
       }
-    }
+    },
+    [searchQuery, statusFilter]
+  )
 
-    fetchWallets()
-  }, [page])
+  useEffect(() => {
+    fetchWallets(page)
+  }, [page, searchQuery, statusFilter, fetchWallets])
 
   const handlePrevious = () => {
     if (pagination?.has_prev) {
@@ -115,11 +151,53 @@ export default function SubWalletTable() {
     setPage(pageNum)
   }
 
-  if (error) {
+  const handleExport = async () => {
+    try {
+      setExporting(true)
+      const csvContent = [
+        ["#", "User", "Wallet Address", "Status", "Amount"],
+        ...rows.map((r, i) => [
+          ((page - 1) * (pagination?.take || 10) + i + 1).toString(),
+          r.user,
+          r.address,
+          r.status,
+          r.amount,
+        ]),
+      ]
+        .map((row) => row.map((cell) => `"${cell}"`).join(","))
+        .join("\n")
+
+      const blob = new Blob([csvContent], { type: "text/csv" })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `wallets-${new Date().toISOString().split("T")[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Export failed:", err)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleRefresh = () => {
+    setPage(1)
+    fetchWallets(1)
+  }
+
+  if (error && rows.length === 0) {
     return (
       <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 mt-6">
-        <div className="text-center py-6 text-red-600 text-sm">
-          Error loading wallets: {error}
+        <div className="text-center py-6">
+          <p className="text-red-600 text-sm mb-4">Error loading wallets: {error}</p>
+          <button
+            onClick={handleRefresh}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+          >
+            <RotateCcw size={16} />
+            Try Again
+          </button>
         </div>
       </div>
     )
@@ -127,16 +205,70 @@ export default function SubWalletTable() {
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 mt-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-sm font-semibold text-gray-900">
-          Sub-wallet with balance
-        </h3>
-        <button className="flex items-center space-x-2 border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition">
-          <Download size={16} />
-          <span>Export List</span>
-        </button>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Sub-wallet with balance</h3>
+          {lastSyncTime && (
+            <p className="text-xs text-gray-500 mt-1">Last synced: {lastSyncTime}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
+            title="Refresh"
+          >
+            <RotateCcw size={16} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={loading || exporting || rows.length === 0}
+            className="flex items-center space-x-2 border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+          >
+            <Download size={16} />
+            <span>{exporting ? "Exporting..." : "Export"}</span>
+          </button>
+        </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        {/* Search */}
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+          <input
+            type="text"
+            placeholder="Search by address or username..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setPage(1)
+            }}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        {/* Status Filter */}
+        <div className="flex items-center gap-2">
+          <Filter size={16} className="text-gray-500" />
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as any)
+              setPage(1)
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm text-left">
           <thead>
@@ -150,20 +282,18 @@ export default function SubWalletTable() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="text-center py-6 text-gray-500 text-sm">
-                  Loading...
-                </td>
-              </tr>
+            {loading && rows.length === 0 ? (
+              <>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRowSkeleton key={i} />
+                ))}
+              </>
             ) : rows.length > 0 ? (
               rows.map((r, i) => (
-                <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="py-3">
-                    {(page - 1) * (pagination?.take || 10) + i + 1}
-                  </td>
+                <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50 transition">
+                  <td className="py-3">{(page - 1) * (pagination?.take || 10) + i + 1}</td>
                   <td className="py-3">{r.user}</td>
-                  <td className="py-3 font-mono text-gray-600 text-xs">
+                  <td className="py-3 font-mono text-gray-600 text-xs truncate max-w-xs" title={r.address}>
                     {r.address}
                   </td>
                   <td className="py-3">
@@ -176,9 +306,7 @@ export default function SubWalletTable() {
                       {r.status}
                     </span>
                   </td>
-                  <td className="py-3 font-semibold text-blue-600">
-                    {r.amount}
-                  </td>
+                  <td className="py-3 font-semibold text-blue-600">{r.amount}</td>
                   <td className="py-3 text-right">
                     <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm shadow-sm transition">
                       Collect
@@ -188,11 +316,10 @@ export default function SubWalletTable() {
               ))
             ) : (
               <tr>
-                <td
-                  colSpan={6}
-                  className="text-center py-6 text-gray-500 text-sm"
-                >
-                  No wallets found
+                <td colSpan={6} className="text-center py-6 text-gray-500 text-sm">
+                  {searchQuery || statusFilter !== "all"
+                    ? "No wallets match your filters"
+                    : "No wallets found"}
                 </td>
               </tr>
             )}
@@ -201,7 +328,7 @@ export default function SubWalletTable() {
       </div>
 
       {/* Records Info */}
-      {pagination && (
+      {pagination && rows.length > 0 && (
         <div className="text-xs text-gray-600 mt-4">
           Showing {rows.length} of {pagination.number_records} records (Page{" "}
           {pagination.page} of {pagination.pages})
@@ -214,8 +341,8 @@ export default function SubWalletTable() {
           {/* Previous */}
           <button
             onClick={handlePrevious}
-            disabled={!pagination.has_prev}
-            className={`flex items-center space-x-1 text-sm border px-3 py-1.5 rounded-lg transition ${!pagination.has_prev
+            disabled={!pagination.has_prev || loading}
+            className={`flex items-center space-x-1 text-sm border px-3 py-1.5 rounded-lg transition ${!pagination.has_prev || loading
               ? "text-gray-400 border-gray-200 cursor-not-allowed"
               : "text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}
@@ -224,10 +351,9 @@ export default function SubWalletTable() {
             <span>Previous</span>
           </button>
 
-          {/* Page buttons - Show limited range */}
+          {/* Page buttons */}
           <div className="flex items-center space-x-1">
             {pagination.pages <= 7 ? (
-              // Show all pages if 7 or fewer
               Array.from({ length: pagination.pages }).map((_, i) => {
                 const pageNum = i + 1
                 const isCurrent = pageNum === pagination.page
@@ -235,10 +361,10 @@ export default function SubWalletTable() {
                   <button
                     key={pageNum}
                     onClick={() => handlePageClick(pageNum)}
-                    disabled={isCurrent}
+                    disabled={isCurrent || loading}
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition ${isCurrent
                       ? "bg-blue-600 text-white cursor-default"
-                      : "text-gray-700 hover:bg-gray-100"
+                      : "text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed"
                       }`}
                   >
                     {pageNum}
@@ -246,14 +372,13 @@ export default function SubWalletTable() {
                 )
               })
             ) : (
-              // Show smart page range for many pages
               <>
-                {/* First page */}
                 {pagination.page > 3 && (
                   <>
                     <button
                       onClick={() => handlePageClick(1)}
-                      className="w-8 h-8 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
+                      disabled={loading}
+                      className="w-8 h-8 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       1
                     </button>
@@ -261,44 +386,41 @@ export default function SubWalletTable() {
                   </>
                 )}
 
-                {/* Pages around current */}
-                {Array.from({ length: Math.min(5, pagination.pages) }).map(
-                  (_, i) => {
-                    let pageNum
-                    if (pagination.page <= 3) {
-                      pageNum = i + 1
-                    } else if (pagination.page > pagination.pages - 3) {
-                      pageNum = pagination.pages - 4 + i
-                    } else {
-                      pageNum = pagination.page - 2 + i
-                    }
-
-                    if (pageNum < 1 || pageNum > pagination.pages) return null
-
-                    const isCurrent = pageNum === pagination.page
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => handlePageClick(pageNum)}
-                        disabled={isCurrent}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition ${isCurrent
-                          ? "bg-blue-600 text-white cursor-default"
-                          : "text-gray-700 hover:bg-gray-100"
-                          }`}
-                      >
-                        {pageNum}
-                      </button>
-                    )
+                {Array.from({ length: Math.min(5, pagination.pages) }).map((_, i) => {
+                  let pageNum
+                  if (pagination.page <= 3) {
+                    pageNum = i + 1
+                  } else if (pagination.page > pagination.pages - 3) {
+                    pageNum = pagination.pages - 4 + i
+                  } else {
+                    pageNum = pagination.page - 2 + i
                   }
-                )}
 
-                {/* Last page */}
+                  if (pageNum < 1 || pageNum > pagination.pages) return null
+
+                  const isCurrent = pageNum === pagination.page
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageClick(pageNum)}
+                      disabled={isCurrent || loading}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition ${isCurrent
+                        ? "bg-blue-600 text-white cursor-default"
+                        : "text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed"
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+
                 {pagination.page < pagination.pages - 2 && (
                   <>
                     <span className="text-gray-400">...</span>
                     <button
                       onClick={() => handlePageClick(pagination.pages)}
-                      className="w-8 h-8 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
+                      disabled={loading}
+                      className="w-8 h-8 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       {pagination.pages}
                     </button>
@@ -311,8 +433,8 @@ export default function SubWalletTable() {
           {/* Next */}
           <button
             onClick={handleNext}
-            disabled={!pagination.has_next}
-            className={`flex items-center space-x-1 text-sm border px-3 py-1.5 rounded-lg transition ${!pagination.has_next
+            disabled={!pagination.has_next || loading}
+            className={`flex items-center space-x-1 text-sm border px-3 py-1.5 rounded-lg transition ${!pagination.has_next || loading
               ? "text-gray-400 border-gray-200 cursor-not-allowed"
               : "text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}
