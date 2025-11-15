@@ -110,13 +110,13 @@ function getStatusDisplay(status: WalletStatus): { label: string; className: str
   const statusMap: Record<WalletStatus, { label: string; className: string; barColor: string }> = {
     NORMAL: {
       label: "Normal",
-      className: "bg-green-100 text-green-700",
-      barColor: "bg-green-500",
+      className: "bg-blue-100 text-blue-700",
+      barColor: "bg-blue-500",
     },
     WARNING: {
       label: "Warning",
-      className: "bg-orange-100 text-orange-700",
-      barColor: "bg-orange-400",
+      className: "bg-blue-100 text-blue-700",
+      barColor: "bg-blue-500",
     },
     STABLE: {
       label: "Stable",
