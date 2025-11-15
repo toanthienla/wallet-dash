@@ -43,7 +43,6 @@ type ApiResponse = {
 function TableRowSkeleton() {
   return (
     <tr className="border-t border-gray-100 animate-pulse">
-      <td className="py-3"><div className="h-4 bg-gray-200 rounded w-8"></div></td>
       <td className="py-3"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
       <td className="py-3"><div className="h-4 bg-gray-200 rounded w-40"></div></td>
       <td className="py-3"><div className="h-4 bg-gray-200 rounded w-28"></div></td>
@@ -67,7 +66,6 @@ function SubWalletTableSkeleton() {
         <table className="min-w-full">
           <thead>
             <tr className="border-b">
-              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-6"></div></th>
               <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-16"></div></th>
               <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-32"></div></th>
               <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-20"></div></th>
@@ -199,9 +197,8 @@ export default function SubWalletTable() {
     try {
       setExporting(true)
       const csvContent = [
-        ["#", "User", "Wallet Address", "Last Active", "Amount"],
-        ...rows.map((r, i) => [
-          ((page - 1) * (pagination?.take || 10) + i + 1).toString(),
+        ["User", "Wallet Address", "Last Active", "Amount"],
+        ...rows.map((r) => [
           r.user,
           r.address,
           r.lastActive,
@@ -259,7 +256,6 @@ export default function SubWalletTable() {
         <table className="min-w-full text-sm text-left">
           <thead>
             <tr className="text-gray-500 border-b text-xs">
-              <th className="pb-3 font-medium">#</th>
               <th className="pb-3 font-medium">User</th>
               <th className="pb-3 font-medium">Wallet Address</th>
               <th className="pb-3 font-medium">Last Active</th>
@@ -269,9 +265,8 @@ export default function SubWalletTable() {
           </thead>
           <tbody>
             {rows.length > 0 ? (
-              rows.map((r, i) => (
+              rows.map((r) => (
                 <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50 transition">
-                  <td className="py-3">{(page - 1) * (pagination?.take || 10) + i + 1}</td>
                   <td className="py-3">{r.user}</td>
                   <td className="py-3 font-mono text-gray-600 text-xs truncate max-w-xs" title={r.address}>
                     {r.address}
@@ -287,7 +282,7 @@ export default function SubWalletTable() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center py-6 text-gray-500 text-sm">
+                <td colSpan={5} className="text-center py-6 text-gray-500 text-sm">
                   No wallets found
                 </td>
               </tr>
