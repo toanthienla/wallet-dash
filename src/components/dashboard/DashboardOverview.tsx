@@ -9,7 +9,11 @@ import MoneyFlowChart from "./MoneyFlowChart"
 import SubWalletTable from "./SubWalletTable"
 import Image from "next/image"
 
-// Skeleton loader for stat cards
+// ============================================================================
+// SKELETON LOADERS - Each component has its own
+// ============================================================================
+
+// StatCard Skeleton
 function StatCardSkeleton() {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
@@ -25,7 +29,7 @@ function StatCardSkeleton() {
   )
 }
 
-// Skeleton loader for system wallet panel
+// SystemWalletPanel Skeleton
 function SystemWalletPanelSkeleton() {
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 animate-pulse">
@@ -50,89 +54,116 @@ function SystemWalletPanelSkeleton() {
   )
 }
 
-// Skeleton loader for chart
-function ChartSkeleton() {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
-      <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
-      <div className="h-72 bg-gray-200 rounded"></div>
-    </div>
-  )
-}
+// ============================================================================
+// ERROR STATE COMPONENTS
+// ============================================================================
 
-// Skeleton loader for table
-function TableSkeleton() {
+function StatCardsErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
-      <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
-      <div className="space-y-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex gap-4 py-3 border-b border-gray-100 last:border-b-0">
-            <div className="h-4 bg-gray-200 rounded w-24"></div>
-            <div className="flex-1 h-4 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/5"></div>
+    <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="text-center py-4">
+            <p className="text-red-600 text-xs mb-2">Failed to load</p>
+            <button
+              onClick={onRetry}
+              className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+            >
+              Retry
+            </button>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-// Error state component
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function SystemWalletErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
-      <div className="text-center">
-        <div className="mb-4">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-1">Unable to Load Dashboard</h3>
-        <p className="text-gray-500 mb-6">
-          Failed to load dashboard statistics. Please try again.
-        </p>
+    <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
+      <div className="text-center py-4">
+        <p className="text-red-600 text-xs mb-2">Failed to load system wallets</p>
         <button
           onClick={onRetry}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+          className="text-blue-600 hover:text-blue-700 text-xs font-medium"
         >
-          Try Again
+          Retry
         </button>
       </div>
     </div>
   )
 }
 
+// ============================================================================
+// SYSTEM WALLET PANEL - Independent Component
+// ============================================================================
+
+type WalletStatus = "NORMAL" | "WARNING" | "STABLE"
+
+type SystemWallet = {
+  name: string
+  status: WalletStatus
+  current_balance: number
+}
+
+function getStatusDisplay(status: WalletStatus): { label: string; className: string; barColor: string } {
+  const statusMap: Record<WalletStatus, { label: string; className: string; barColor: string }> = {
+    NORMAL: {
+      label: "Normal",
+      className: "bg-green-100 text-green-700",
+      barColor: "bg-green-500",
+    },
+    WARNING: {
+      label: "Warning",
+      className: "bg-orange-100 text-orange-700",
+      barColor: "bg-orange-400",
+    },
+    STABLE: {
+      label: "Stable",
+      className: "bg-blue-100 text-blue-700",
+      barColor: "bg-blue-500",
+    },
+  }
+  return statusMap[status]
+}
+
 function SystemWalletPanel() {
-  const [wallets, setWallets] = useState<any[]>([])
+  const [wallets, setWallets] = useState<SystemWallet[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  const fetchWallets = async () => {
+    try {
+      setLoading(true)
+      setError(false)
+
+      const url = `${API_URL}/platform-config/dashboard/main-wallets`
+      console.log("📡 [SystemWalletPanel] Fetching:", url)
+
+      const res = await axiosClient.get(url)
+      console.log("✅ [SystemWalletPanel] Data:", res.data)
+
+      const data = res.data?.data?.main_wallets || []
+      setWallets(data)
+    } catch (err: any) {
+      console.error("❌ [SystemWalletPanel] Error:", err.message)
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchWallets = async () => {
-      try {
-        const res = await axiosClient.get(`${API_URL}/platform-config/dashboard/main-wallets`)
-        const data = res.data?.data?.main_wallets || []
-        setWallets(data)
-      } catch (err: any) {
-        console.error("❌ Error fetching main wallets:", err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchWallets()
   }, [])
+
+  if (loading) {
+    return <SystemWalletPanelSkeleton />
+  }
+
+  if (error) {
+    return <SystemWalletErrorState onRetry={fetchWallets} />
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
@@ -144,48 +175,18 @@ function SystemWalletPanel() {
         </button>
       </div>
 
-      {loading ? (
-        <div className="space-y-5 animate-pulse">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-4 bg-gray-200 rounded w-24"></div>
-                <div className="h-5 bg-gray-200 rounded-full w-16"></div>
-              </div>
-              <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-40 mb-3"></div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-2.5 bg-gray-200 rounded-full"></div>
-                <div className="h-3 bg-gray-200 rounded w-8"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {wallets.map((w, i) => {
-            const status =
-              w.status === "NORMAL"
-                ? "Normal"
-                : w.status === "WARNING"
-                  ? "Warning"
-                  : "Stable"
-
-            const statusClass =
-              status === "Normal"
-                ? "bg-green-100 text-green-700"
-                : status === "Warning"
-                  ? "bg-orange-100 text-orange-700"
-                  : "bg-blue-100 text-blue-700"
-
+      <div className="space-y-5">
+        {wallets.length > 0 ? (
+          wallets.map((w, i) => {
+            const { label, className, barColor } = getStatusDisplay(w.status)
             const percent = Math.min((w.current_balance / 20000) * 100, 100)
 
             return (
               <div key={i} className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-800">{w.name}</span>
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusClass}`}>
-                    {status}
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${className}`}>
+                    {label}
                   </span>
                 </div>
 
@@ -197,11 +198,7 @@ function SystemWalletPanel() {
                 <div className="flex items-center gap-2">
                   <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
                     <div
-                      className={`h-2.5 rounded-full transition-all
-                        ${status === "Normal" ? "bg-blue-500" : ""}
-                        ${status === "Warning" ? "bg-blue-400" : ""}
-                        ${status === "Stable" ? "bg-blue-500" : ""}
-                      `}
+                      className={`h-2.5 rounded-full transition-all ${barColor}`}
                       style={{ width: `${percent}%` }}
                     />
                   </div>
@@ -209,12 +206,18 @@ function SystemWalletPanel() {
                 </div>
               </div>
             )
-          })}
-        </div>
-      )}
+          })
+        ) : (
+          <div className="text-center py-4 text-gray-500 text-sm">No wallets available</div>
+        )}
+      </div>
     </div>
   )
 }
+
+// ============================================================================
+// STAT CARDS SECTION - Independent Component
+// ============================================================================
 
 type OverviewStats = {
   totalInitializedPasscode: number
@@ -225,7 +228,7 @@ type OverviewStats = {
   totalBalance: number
 }
 
-export default function DashboardOverview() {
+function StatCardsSection() {
   const [stats, setStats] = useState<OverviewStats>({
     totalInitializedPasscode: 0,
     totalUninitializedPasscode: 0,
@@ -237,16 +240,16 @@ export default function DashboardOverview() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
-  const fetchOverviewData = async () => {
+  const fetchStats = async () => {
     try {
       setLoading(true)
       setError(false)
 
       const url = `${API_URL}/wallets/dashboard/overview`
-      console.log("📡 Fetching dashboard overview from:", url)
+      console.log("📡 [StatCardsSection] Fetching:", url)
 
       const res = await axiosClient.get(url)
-      console.log("✅ Dashboard overview data:", res.data)
+      console.log("✅ [StatCardsSection] Data:", res.data)
 
       if (!res.data.success) {
         throw new Error(res.data.message || "Failed to fetch overview data")
@@ -263,7 +266,7 @@ export default function DashboardOverview() {
         totalBalance: d.total_balance ?? 0,
       })
     } catch (err: any) {
-      console.error("❌ Error fetching dashboard overview:", err.message)
+      console.error("❌ [StatCardsSection] Error:", err.message)
       setError(true)
     } finally {
       setLoading(false)
@@ -271,25 +274,59 @@ export default function DashboardOverview() {
   }
 
   useEffect(() => {
-    fetchOverviewData()
+    fetchStats()
   }, [])
 
-  if (error) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <AppSidebar />
-        <div className="flex-1 flex flex-col min-h-screen">
-          <AppHeader />
-          <main className="flex-1 p-6 lg:p-8">
-            <div className="max-w-full">
-              <ErrorState onRetry={fetchOverviewData} />
-            </div>
-          </main>
-        </div>
-      </div>
+      <>
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+      </>
     )
   }
 
+  if (error) {
+    return <StatCardsErrorState onRetry={fetchStats} />
+  }
+
+  return (
+    <>
+      <StatCard
+        title="Total Users"
+        value={stats.totalUsers.toLocaleString()}
+        subtitle="+11.01% from last month"
+        icon={<img src="/images/icons/Wallet.svg" alt="Wallet Icon" className="w-5 h-5" />}
+      />
+      <StatCard
+        title="Active Sub-Wallet"
+        value={stats.totalActiveSubWallets.toLocaleString()}
+        subtitle="Initialized and ready"
+        icon={<img src="/images/icons/Active.svg" alt="Active Icon" className="w-5 h-5" />}
+      />
+      <StatCard
+        title="Pending Collection"
+        value={stats.totalPendingCollection.toLocaleString()}
+        subtitle="Ready for collection"
+        icon={<img src="/images/icons/Pending.svg" alt="Pending Icon" className="w-6 h-6" />}
+      />
+      <StatCard
+        title="Total Balance"
+        value={`$${(stats.totalBalance / 1e9).toFixed(2)}B`}
+        subtitle={`${stats.totalUsers.toLocaleString()} accounts`}
+        icon={<img src="/images/icons/System.svg" alt="System Icon" className="w-6 h-6" />}
+      />
+    </>
+  )
+}
+
+// ============================================================================
+// MAIN DASHBOARD OVERVIEW
+// ============================================================================
+
+export default function DashboardOverview() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <AppSidebar />
@@ -297,75 +334,28 @@ export default function DashboardOverview() {
         <AppHeader />
         <main className="flex-1 p-6 lg:p-8">
           <div className="max-w-full">
+            {/* Stats and System Wallet in Grid - Load independently */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left cards */}
+              {/* Left cards - StatCardsSection loads independently */}
               <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {loading ? (
-                  <>
-                    <StatCardSkeleton />
-                    <StatCardSkeleton />
-                    <StatCardSkeleton />
-                    <StatCardSkeleton />
-                  </>
-                ) : (
-                  <>
-                    <StatCard
-                      title="Total Users"
-                      value={stats.totalUsers.toLocaleString()}
-                      subtitle="+11.01% from last month"
-                      icon={<img src="/images/icons/Wallet.svg" alt="Wallet Icon" className="w-5 h-5" />}
-                    />
-                    <StatCard
-                      title="Active Sub-Wallet"
-                      value={stats.totalActiveSubWallets.toLocaleString()}
-                      subtitle="Initialized and ready"
-                      icon={<img src="/images/icons/Active.svg" alt="Active Icon" className="w-5 h-5" />}
-                    />
-                    <StatCard
-                      title="Pending Collection"
-                      value={stats.totalPendingCollection.toLocaleString()}
-                      subtitle="Ready for collection"
-                      icon={<img src="/images/icons/Pending.svg" alt="Pending Icon" className="w-6 h-6" />}
-                    />
-                    <StatCard
-                      title="Total Balance"
-                      value={`$${(stats.totalBalance / 1e9).toFixed(2)}B`}
-                      subtitle={`${stats.totalUsers.toLocaleString()} accounts`}
-                      icon={<img src="/images/icons/System.svg" alt="System Icon" className="w-6 h-6" />}
-                    />
-                  </>
-                )}
+                <StatCardsSection />
               </div>
 
-              {/* Right panel */}
+              {/* Right panel - SystemWalletPanel loads independently */}
               <div>
-                {loading ? <SystemWalletPanelSkeleton /> : <SystemWalletPanel />}
+                <SystemWalletPanel />
               </div>
             </div>
 
-            {!loading && (
-              <>
-                <div className="mt-6">
-                  <MoneyFlowChart />
-                </div>
+            {/* Chart - Loads independently */}
+            <div className="mt-6">
+              <MoneyFlowChart />
+            </div>
 
-                <div className="mt-6">
-                  <SubWalletTable />
-                </div>
-              </>
-            )}
-
-            {loading && (
-              <>
-                <div className="mt-6">
-                  <ChartSkeleton />
-                </div>
-
-                <div className="mt-6">
-                  <TableSkeleton />
-                </div>
-              </>
-            )}
+            {/* Table - Loads independently */}
+            <div className="mt-6">
+              <SubWalletTable />
+            </div>
           </div>
         </main>
       </div>

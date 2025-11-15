@@ -36,7 +36,10 @@ type ApiResponse = {
   timestamp: string
 }
 
-// Table skeleton loader
+// ============================================================================
+// SKELETON LOADER - SubWalletTable specific
+// ============================================================================
+
 function TableRowSkeleton() {
   return (
     <tr className="border-t border-gray-100 animate-pulse">
@@ -49,6 +52,66 @@ function TableRowSkeleton() {
     </tr>
   )
 }
+
+function SubWalletTableSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 mt-6 animate-pulse">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <div className="h-5 bg-gray-200 rounded w-40 mb-2"></div>
+          <div className="h-3 bg-gray-200 rounded w-32"></div>
+        </div>
+        <div className="flex gap-2">
+          <div className="h-8 bg-gray-200 rounded w-8"></div>
+          <div className="h-8 bg-gray-200 rounded w-24"></div>
+        </div>
+      </div>
+
+      {/* Filters skeleton */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <div className="flex-1 h-10 bg-gray-200 rounded-lg"></div>
+        <div className="w-32 h-10 bg-gray-200 rounded-lg"></div>
+      </div>
+
+      {/* Table skeleton */}
+      <div className="overflow-x-auto mb-5">
+        <table className="min-w-full">
+          <thead>
+            <tr className="border-b">
+              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-6"></div></th>
+              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-16"></div></th>
+              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-32"></div></th>
+              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-12"></div></th>
+              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-16"></div></th>
+              <th className="pb-3"><div className="h-4 bg-gray-200 rounded w-12"></div></th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <TableRowSkeleton key={i} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination skeleton */}
+      <div className="flex items-center justify-between mt-5">
+        <div className="h-8 bg-gray-200 rounded w-20"></div>
+        <div className="flex gap-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-8 w-8 bg-gray-200 rounded"></div>
+          ))}
+        </div>
+        <div className="h-8 bg-gray-200 rounded w-20"></div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// SUB WALLET TABLE - Independent Component
+// ============================================================================
 
 export default function SubWalletTable() {
   const [rows, setRows] = useState<WalletRow[]>([])
@@ -78,10 +141,10 @@ export default function SubWalletTable() {
         }
 
         const fullUrl = `${url}?${params.toString()}`
-        console.log("📡 Fetching:", fullUrl)
+        console.log("📡 [SubWalletTable] Fetching:", fullUrl)
 
         const res = await axiosClient.get<ApiResponse>(fullUrl)
-        console.log("✅ API response:", res.data)
+        console.log("✅ [SubWalletTable] API response:", res.data)
 
         if (!res.data.success) {
           throw new Error(res.data.message || "API request failed")
@@ -121,7 +184,7 @@ export default function SubWalletTable() {
         setPage(apiData.paginated.page)
         setLastSyncTime(new Date().toLocaleTimeString())
       } catch (err: any) {
-        console.error("❌ Error fetching sub-wallets:", err.message)
+        console.error("❌ [SubWalletTable] Error:", err.message)
         setError(err.message)
         setRows([])
       } finally {
@@ -184,6 +247,10 @@ export default function SubWalletTable() {
   const handleRefresh = () => {
     setPage(1)
     fetchWallets(1)
+  }
+
+  if (loading && rows.length === 0) {
+    return <SubWalletTableSkeleton />
   }
 
   if (error && rows.length === 0) {
@@ -282,13 +349,7 @@ export default function SubWalletTable() {
             </tr>
           </thead>
           <tbody>
-            {loading && rows.length === 0 ? (
-              <>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <TableRowSkeleton key={i} />
-                ))}
-              </>
-            ) : rows.length > 0 ? (
+            {rows.length > 0 ? (
               rows.map((r, i) => (
                 <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50 transition">
                   <td className="py-3">{(page - 1) * (pagination?.take || 10) + i + 1}</td>
