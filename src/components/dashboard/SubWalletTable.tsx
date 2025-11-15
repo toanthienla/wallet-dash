@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback } from "react"
 import axiosClient from "@/utils/axiosClient"
 import { API_URL } from "@/utils/constants"
-import { Download, ChevronLeft, ChevronRight, Search, Filter, RotateCcw } from "lucide-react"
+import { Download, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
 
 type WalletRow = {
   id: string
@@ -58,20 +58,11 @@ function SubWalletTableSkeleton() {
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 mt-6 animate-pulse">
       {/* Header skeleton */}
       <div className="flex items-center justify-between mb-5">
-        <div>
-          <div className="h-5 bg-gray-200 rounded w-40 mb-2"></div>
-          <div className="h-3 bg-gray-200 rounded w-32"></div>
-        </div>
+        <div className="h-5 bg-gray-200 rounded w-40"></div>
         <div className="flex gap-2">
           <div className="h-8 bg-gray-200 rounded w-8"></div>
           <div className="h-8 bg-gray-200 rounded w-24"></div>
         </div>
-      </div>
-
-      {/* Filters skeleton */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="flex-1 h-10 bg-gray-200 rounded-lg"></div>
-        <div className="w-32 h-10 bg-gray-200 rounded-lg"></div>
       </div>
 
       {/* Table skeleton */}
@@ -120,9 +111,6 @@ export default function SubWalletTable() {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all")
-  const [lastSyncTime, setLastSyncTime] = useState<string>("")
 
   const fetchWallets = useCallback(
     async (pageNum: number = 1) => {
@@ -136,10 +124,6 @@ export default function SubWalletTable() {
           take: "10",
         })
 
-        if (searchQuery) {
-          params.append("keyword", searchQuery)
-        }
-
         const fullUrl = `${url}?${params.toString()}`
         console.log("📡 [SubWalletTable] Fetching:", fullUrl)
 
@@ -151,16 +135,7 @@ export default function SubWalletTable() {
         }
 
         const apiData = res.data.data
-        let walletList = apiData.wallets || []
-
-        // Apply status filter
-        if (statusFilter !== "all") {
-          walletList = walletList.filter(
-            (w) =>
-              (statusFilter === "active" && w.is_initialized_passcode) ||
-              (statusFilter === "inactive" && !w.is_initialized_passcode)
-          )
-        }
+        const walletList = apiData.wallets || []
 
         // Map wallet data
         const wallets = walletList.map((w: any, i: number) => {
@@ -182,7 +157,6 @@ export default function SubWalletTable() {
         setRows(wallets)
         setPagination(apiData.paginated)
         setPage(apiData.paginated.page)
-        setLastSyncTime(new Date().toLocaleTimeString())
       } catch (err: any) {
         console.error("❌ [SubWalletTable] Error:", err.message)
         setError(err.message)
@@ -191,12 +165,12 @@ export default function SubWalletTable() {
         setLoading(false)
       }
     },
-    [searchQuery, statusFilter]
+    []
   )
 
   useEffect(() => {
     fetchWallets(page)
-  }, [page, searchQuery, statusFilter, fetchWallets])
+  }, [page, fetchWallets])
 
   const handlePrevious = () => {
     if (pagination?.has_prev) {
@@ -274,12 +248,7 @@ export default function SubWalletTable() {
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 mt-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">Sub-wallet with balance</h3>
-          {lastSyncTime && (
-            <p className="text-xs text-gray-500 mt-1">Last synced: {lastSyncTime}</p>
-          )}
-        </div>
+        <h3 className="text-sm font-semibold text-gray-900">Sub-wallet with balance</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={handleRefresh}
@@ -297,41 +266,6 @@ export default function SubWalletTable() {
             <Download size={16} />
             <span>{exporting ? "Exporting..." : "Export"}</span>
           </button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        {/* Search */}
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-          <input
-            type="text"
-            placeholder="Search by address or username..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value)
-              setPage(1)
-            }}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-          />
-        </div>
-
-        {/* Status Filter */}
-        <div className="flex items-center gap-2">
-          <Filter size={16} className="text-gray-500" />
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as any)
-              setPage(1)
-            }}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
         </div>
       </div>
 
@@ -378,9 +312,7 @@ export default function SubWalletTable() {
             ) : (
               <tr>
                 <td colSpan={6} className="text-center py-6 text-gray-500 text-sm">
-                  {searchQuery || statusFilter !== "all"
-                    ? "No wallets match your filters"
-                    : "No wallets found"}
+                  No wallets found
                 </td>
               </tr>
             )}
