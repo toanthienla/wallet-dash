@@ -80,7 +80,7 @@ function TableSkeleton() {
 }
 
 // Error state component
-function ErrorState() {
+function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
       <div className="text-center">
@@ -95,12 +95,20 @@ function ErrorState() {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-1">No Dashboard Wallet Data</h3>
-        <p className="text-gray-500">Unable to load dashboard wallet data. Please try again later.</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-1">Unable to Load Dashboard</h3>
+        <p className="text-gray-500 mb-6">
+          Failed to load dashboard statistics. Please try again.
+        </p>
+        <button
+          onClick={onRetry}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+        >
+          Try Again
+        </button>
       </div>
     </div>
   )
@@ -117,7 +125,7 @@ function SystemWalletPanel() {
         const data = res.data?.data?.main_wallets || []
         setWallets(data)
       } catch (err: any) {
-        console.error(" Error fetching main wallets:", err.message)
+        console.error("❌ Error fetching main wallets:", err.message)
       } finally {
         setLoading(false)
       }
@@ -208,46 +216,62 @@ function SystemWalletPanel() {
   )
 }
 
+type OverviewStats = {
+  totalInitializedPasscode: number
+  totalUninitializedPasscode: number
+  totalUsers: number
+  totalPendingCollection: number
+  totalActiveSubWallets: number
+  totalBalance: number
+}
+
 export default function DashboardOverview() {
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<OverviewStats>({
+    totalInitializedPasscode: 0,
+    totalUninitializedPasscode: 0,
     totalUsers: 0,
-    activeSubWallets: 0,
-    pendingCollection: 0,
-    systemAlerts: 0,
+    totalPendingCollection: 0,
+    totalActiveSubWallets: 0,
+    totalBalance: 0,
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        setError(false)
+  const fetchOverviewData = async () => {
+    try {
+      setLoading(true)
+      setError(false)
 
-        const url = `${API_URL}/wallets/dashboard/list`
-        console.log("📡 Fetching dashboard data from:", url)
+      const url = `${API_URL}/wallets/dashboard/overview`
+      console.log("📡 Fetching dashboard overview from:", url)
 
-        const res = await axiosClient.get(url)
+      const res = await axiosClient.get(url)
+      console.log("✅ Dashboard overview data:", res.data)
 
-        console.log("✅ Fetched data:", res.data)
-
-        const d = res.data?.data || {}
-
-        setStats({
-          totalUsers: d.total_of_users ?? 0,
-          activeSubWallets: d.total_of_active_sub_wallets ?? 0,
-          pendingCollection: d.total_of_pending_collection ?? 0,
-          systemAlerts: 0,
-        })
-      } catch (err: any) {
-        console.error("❌ Error fetching dashboard data:", err.message)
-        setError(true)
-      } finally {
-        setLoading(false)
+      if (!res.data.success) {
+        throw new Error(res.data.message || "Failed to fetch overview data")
       }
-    }
 
-    fetchData()
+      const d = res.data?.data || {}
+
+      setStats({
+        totalInitializedPasscode: d.total_of_initialized_passcode ?? 0,
+        totalUninitializedPasscode: d.total_of_uninitialized_passcode ?? 0,
+        totalUsers: d.total_of_users ?? 0,
+        totalPendingCollection: d.total_of_pending_collection ?? 0,
+        totalActiveSubWallets: d.total_of_active_sub_wallets ?? 0,
+        totalBalance: d.total_balance ?? 0,
+      })
+    } catch (err: any) {
+      console.error("❌ Error fetching dashboard overview:", err.message)
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchOverviewData()
   }, [])
 
   if (error) {
@@ -258,7 +282,7 @@ export default function DashboardOverview() {
           <AppHeader />
           <main className="flex-1 p-6 lg:p-8">
             <div className="max-w-full">
-              <ErrorState />
+              <ErrorState onRetry={fetchOverviewData} />
             </div>
           </main>
         </div>
@@ -293,20 +317,20 @@ export default function DashboardOverview() {
                     />
                     <StatCard
                       title="Active Sub-Wallet"
-                      value={stats.activeSubWallets.toLocaleString()}
-                      subtitle="874 wallets with balance"
+                      value={stats.totalActiveSubWallets.toLocaleString()}
+                      subtitle="Initialized and ready"
                       icon={<img src="/images/icons/Active.svg" alt="Active Icon" className="w-5 h-5" />}
                     />
                     <StatCard
                       title="Pending Collection"
-                      value={stats.pendingCollection.toLocaleString()}
-                      subtitle="23 wallets ready"
+                      value={stats.totalPendingCollection.toLocaleString()}
+                      subtitle="Ready for collection"
                       icon={<img src="/images/icons/Pending.svg" alt="Pending Icon" className="w-6 h-6" />}
                     />
                     <StatCard
-                      title="System Alert"
-                      value={stats.systemAlerts}
-                      subtitle="2 threshold warnings"
+                      title="Total Balance"
+                      value={`$${(stats.totalBalance / 1e9).toFixed(2)}B`}
+                      subtitle={`${stats.totalUsers.toLocaleString()} accounts`}
                       icon={<img src="/images/icons/System.svg" alt="System Icon" className="w-6 h-6" />}
                     />
                   </>
