@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import AppSidebar from "@/layout/AppSidebar";
 import AppHeader from "@/layout/AppHeader";
-import { ChevronRight } from "lucide-react";
 import Image from "next/image";
 import axiosClient from "@/utils/axiosClient";
 import { API_URL } from "@/utils/constants";
@@ -144,6 +144,15 @@ type TraceStats = {
   suspicious_pattems: number;
 };
 
+interface PaginationMeta {
+  page: number;
+  pages: number;
+  take: number;
+  number_records: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
 export default function TransactionTracePage() {
   const [stats, setStats] = useState<TraceStats>({
     total_transactions: 0,
@@ -154,16 +163,27 @@ export default function TransactionTracePage() {
   const [traces, setTraces] = useState<any[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingTraces, setLoadingTraces] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    pages: 1,
+    take: 10,
+    number_records: 0,
+    has_next: false,
+    has_prev: false,
+  });
 
+  const perPage = 10;
+
+  // Fetch stats
   useEffect(() => {
-    const fetchTraces = async () => {
+    const fetchStats = async () => {
       try {
         const response = await axiosClient.get(
           `${API_URL}/transaction/dashboard/traces`
         );
 
         const data = response.data?.data || {};
-        setTraces(data.traces || []);
         const s = data.stats || data;
         setStats({
           total_transactions: s.total_transactions ?? 0,
@@ -171,15 +191,53 @@ export default function TransactionTracePage() {
           suspicious_pattems: s.suspicious_pattems ?? 0,
         });
       } catch (error) {
-        console.error("❌ Error fetching traces:", error);
+        console.error("❌ Error fetching stats:", error);
       } finally {
-        setLoadingTraces(false);
         setLoadingStats(false);
       }
     };
 
-    fetchTraces();
+    fetchStats();
   }, []);
+
+  // Fetch traces with pagination
+  useEffect(() => {
+    const fetchTraces = async () => {
+      try {
+        setLoadingTraces(true);
+
+        // Build query parameters
+        const params = new URLSearchParams();
+        params.append("page", page.toString());
+        params.append("take", perPage.toString());
+
+        const response = await axiosClient.get(
+          `${API_URL}/transaction/dashboard/traces?${params.toString()}`
+        );
+
+        const data = response.data?.data || {};
+        const tracesData = data.traces || [];
+        const paginationData = data.paginated;
+
+        setTraces(tracesData);
+        setPagination({
+          page: paginationData?.page || 1,
+          pages: paginationData?.pages || 1,
+          take: paginationData?.take || perPage,
+          number_records: paginationData?.number_records || tracesData.length,
+          has_next: paginationData?.has_next || false,
+          has_prev: paginationData?.has_prev || false,
+        });
+      } catch (error) {
+        console.error("❌ Error fetching traces:", error);
+        setTraces([]);
+      } finally {
+        setLoadingTraces(false);
+      }
+    };
+
+    fetchTraces();
+  }, [page]);
 
   const formatNumber = (num: number) =>
     new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(num);
@@ -385,7 +443,6 @@ export default function TransactionTracePage() {
               </section>
             )}
 
-
             {/* ✅ Transaction Flow Diagram */}
             {!loadingStats && (
               <div className="flex justify-center items-center w-full">
@@ -503,9 +560,7 @@ export default function TransactionTracePage() {
               </div>
             )}
 
-
-
-            {/* ✅ Recent Transaction Flows (đã fix API) */}
+            {/* ✅ Recent Transaction Flows with Pagination */}
             {loadingTraces ? (
               <TransactionTableSkeleton />
             ) : (
@@ -514,6 +569,9 @@ export default function TransactionTracePage() {
                   <h2 className="text-base font-semibold text-gray-900">
                     Recent Transaction Flows
                   </h2>
+                  <div className="text-sm text-gray-600">
+                    Page {pagination.page} of {pagination.pages} • {pagination.number_records} total
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -532,8 +590,13 @@ export default function TransactionTracePage() {
                     <tbody className="divide-y divide-gray-100">
                       {traces.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="text-center py-6 text-gray-400">
-                            No traces found.
+                          <td colSpan={7} className="text-center py-12 text-gray-400">
+                            <div className="flex flex-col items-center justify-center">
+                              <svg className="h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              No traces found.
+                            </div>
                           </td>
                         </tr>
                       ) : (
@@ -617,32 +680,117 @@ export default function TransactionTracePage() {
                   </table>
                 </div>
 
-                {/* Pagination — luôn hiển thị kể cả chỉ có 1 trang */}
+                {/* Pagination */}
                 <div className="flex items-center justify-between mt-6">
                   {/* Previous */}
                   <button
-                    disabled
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={!pagination.has_prev || loadingTraces}
+                    className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm transition ${!pagination.has_prev || loadingTraces
+                      ? "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
+                      : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                      }`}
                   >
-                    ← Previous
+                    <ChevronLeft size={16} />
+                    Previous
                   </button>
 
                   {/* Page numbers */}
                   <div className="flex items-center gap-2">
-                    <button className="w-8 h-8 rounded-lg bg-blue-600 text-white text-sm font-medium">
+                    {/* First page */}
+                    <button
+                      onClick={() => setPage(1)}
+                      disabled={loadingTraces}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition ${pagination.page === 1
+                        ? "bg-blue-600 text-white"
+                        : loadingTraces
+                          ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                    >
                       1
                     </button>
+
+                    {/* Ellipsis if needed */}
+                    {pagination.page > 3 && (
+                      <span className="text-gray-400">...</span>
+                    )}
+
+                    {/* Middle pages */}
+                    {Array.from({
+                      length: Math.min(
+                        5,
+                        pagination.pages,
+                        Math.max(0, pagination.page - 1) + Math.max(0, pagination.pages - pagination.page) + 1
+                      ),
+                    }).map((_, i) => {
+                      let pageNum: number;
+                      if (pagination.pages <= 5) {
+                        pageNum = i + 1;
+                      } else if (pagination.page <= 3) {
+                        pageNum = i + 1;
+                      } else if (pagination.page >= pagination.pages - 2) {
+                        pageNum = pagination.pages - 4 + i;
+                      } else {
+                        pageNum = pagination.page - 2 + i;
+                      }
+
+                      if (pageNum === 1 || pageNum === pagination.pages) {
+                        return null;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setPage(pageNum)}
+                          disabled={loadingTraces}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition ${pagination.page === pageNum
+                            ? "bg-blue-600 text-white"
+                            : loadingTraces
+                              ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+
+                    {/* Ellipsis if needed */}
+                    {pagination.page < pagination.pages - 2 && (
+                      <span className="text-gray-400">...</span>
+                    )}
+
+                    {/* Last page */}
+                    {pagination.pages > 1 && (
+                      <button
+                        onClick={() => setPage(pagination.pages)}
+                        disabled={loadingTraces}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition ${pagination.page === pagination.pages
+                          ? "bg-blue-600 text-white"
+                          : loadingTraces
+                            ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                      >
+                        {pagination.pages}
+                      </button>
+                    )}
                   </div>
 
                   {/* Next */}
                   <button
-                    disabled
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
+                    onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                    disabled={!pagination.has_next || loadingTraces}
+                    className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm transition ${!pagination.has_next || loadingTraces
+                      ? "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
+                      : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                      }`}
                   >
-                    Next →
+                    Next
+                    <ChevronRight size={16} />
                   </button>
                 </div>
-
               </section>
             )}
           </main>
