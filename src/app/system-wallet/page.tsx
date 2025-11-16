@@ -14,88 +14,109 @@ interface Wallet {
   status: string;
 }
 
+interface PaginationMeta {
+  page: number;
+  pages: number;
+  take: number;
+  number_records: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
 interface WalletData {
   total_wallets: number;
   total_balance: number;
   last_updated: string;
   main_wallets: Wallet[];
+  paginated: PaginationMeta;
 }
+
+// Skeleton Loading Component
+const SkeletonCard = () => (
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 animate-pulse">
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+        <div className="h-8 bg-gray-200 rounded w-32"></div>
+      </div>
+      <div className="w-12 h-12 bg-gray-200 rounded-lg ml-4"></div>
+    </div>
+  </div>
+);
+
+// Skeleton Loading for Table
+const SkeletonTable = () => (
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div className="space-y-4">
+      {/* Table Header Skeleton */}
+      <div className="flex gap-4 pb-4 border-b">
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+        <div className="h-4 bg-gray-200 rounded w-32"></div>
+        <div className="h-4 bg-gray-200 rounded w-28"></div>
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+        <div className="h-4 bg-gray-200 rounded w-20"></div>
+      </div>
+
+      {/* Table Rows Skeleton */}
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex gap-4 py-4 border-b last:border-b-0 animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-24"></div>
+          <div className="h-4 bg-gray-200 rounded w-32"></div>
+          <div className="h-4 bg-gray-200 rounded w-28"></div>
+          <div className="h-4 bg-gray-200 rounded w-24"></div>
+          <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 export default function SystemWalletPage() {
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 10;
 
-  //  Fetch API bằng axios (có cookie)
-  async function fetchSystemWallets() {
+  // Fetch API with pagination
+  async function fetchSystemWallets(page: number = 1) {
     try {
+      const params = new URLSearchParams();
+      params.append("page", page.toString());
+      params.append("take", perPage.toString());
+
       const res = await axiosClient.get(
-        `${API_URL}/platform-config/dashboard/main-wallets`
+        `${API_URL}/platform-config/dashboard/main-wallets?${params.toString()}`
       );
 
       return res.data;
     } catch (error) {
-      console.error(" Fetch system wallets failed:", error);
+      console.error("Fetch system wallets failed:", error);
       return null;
     }
   }
 
   useEffect(() => {
     async function loadData() {
-      const data = await fetchSystemWallets();
-      if (data?.success) {
+      setLoading(true);
+      const data = await fetchSystemWallets(currentPage);
+      if (data?.success && data?.data) {
         setWalletData(data.data);
       }
       setLoading(false);
     }
     loadData();
-  }, []);
+  }, [currentPage]);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
 
   const formatNumber = (num?: number) =>
     typeof num === "number"
       ? num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : "0.00";
 
-  // Skeleton Loading Component
-  const SkeletonCard = () => (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 animate-pulse">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
-          <div className="h-8 bg-gray-200 rounded w-32"></div>
-        </div>
-        <div className="w-12 h-12 bg-gray-200 rounded-lg ml-4"></div>
-      </div>
-    </div>
-  );
-
-  // Skeleton Loading for Table
-  const SkeletonTable = () => (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-      <div className="space-y-4">
-        {/* Table Header Skeleton */}
-        <div className="flex gap-4 pb-4 border-b">
-          <div className="h-4 bg-gray-200 rounded w-24"></div>
-          <div className="h-4 bg-gray-200 rounded w-32"></div>
-          <div className="h-4 bg-gray-200 rounded w-28"></div>
-          <div className="h-4 bg-gray-200 rounded w-24"></div>
-          <div className="h-4 bg-gray-200 rounded w-20"></div>
-        </div>
-
-        {/* Table Rows Skeleton */}
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex gap-4 py-4 border-b last:border-b-0 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-24"></div>
-            <div className="h-4 bg-gray-200 rounded w-32"></div>
-            <div className="h-4 bg-gray-200 rounded w-28"></div>
-            <div className="h-4 bg-gray-200 rounded w-24"></div>
-            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  if (loading) {
+  if (loading && !walletData) {
     return (
       <div className="space-y-6">
         {/* Metric Cards Skeleton */}
@@ -138,7 +159,7 @@ export default function SystemWalletPage() {
     );
   }
 
-  const { total_wallets, total_balance, last_updated, main_wallets } = walletData;
+  const { total_wallets, total_balance, last_updated, main_wallets, paginated } = walletData;
 
   return (
     <div className="space-y-6">
@@ -158,8 +179,20 @@ export default function SystemWalletPage() {
         />
       </div>
 
-      {/*  Truyền đúng prop cho bảng */}
-      <SystemWalletTable wallets={main_wallets} />
+      {/* System Wallet Table with Server-Side Pagination */}
+      <SystemWalletTable
+        wallets={main_wallets}
+        pagination={paginated || {
+          page: currentPage,
+          pages: 1,
+          take: perPage,
+          number_records: main_wallets.length,
+          has_next: false,
+          has_prev: false,
+        }}
+        onPageChange={handlePageChange}
+        loading={loading}
+      />
     </div>
   );
 }
