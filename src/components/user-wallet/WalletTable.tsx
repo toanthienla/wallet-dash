@@ -7,14 +7,18 @@ import axiosClient from "@/utils/axiosClient"
 
 type Wallet = {
   id: string
+  address: string
+  user_created: string
+  is_initialized_passcode: boolean
+  app_slug: string[]
+  assets: number
   user: {
+    id: string | null
+    username: string | null
     first_name: string | null
     last_name: string | null
     email: string | null
   }
-  assets: number
-  address: string
-  is_initialized_passcode: boolean
   total_transactions_today: number
 }
 
@@ -29,12 +33,16 @@ type Row = {
 }
 
 type PaginationMeta = {
+  keyword: string
   page: number
-  pages: number
-  has_next: boolean
-  has_prev: boolean
-  number_records: number
   take: number
+  sort: string
+  sorted: string
+  to_date: string
+  number_records: number
+  pages: number
+  has_prev: boolean
+  has_next: boolean
 }
 
 function StatusPill({ status }: { status: Row["status"] }) {
@@ -51,7 +59,7 @@ function StatusPill({ status }: { status: Row["status"] }) {
   )
 }
 
-function generateUserInfo(userData: { first_name: string | null; last_name: string | null }) {
+function generateUserInfo(userData: Wallet["user"]) {
   const fullName = [userData.first_name, userData.last_name]
     .filter(Boolean)
     .join(" ") || "No user info"
@@ -93,12 +101,16 @@ export default function WalletTable({ loading: initialLoading = false }) {
   const [loading, setLoading] = useState(initialLoading)
   const [searchQuery, setSearchQuery] = useState("")
   const [pagination, setPagination] = useState<PaginationMeta>({
+    keyword: "",
     page: 1,
-    pages: 1,
-    has_next: false,
-    has_prev: false,
-    number_records: 0,
     take: 10,
+    sort: "date_created",
+    sorted: "desc",
+    to_date: "",
+    number_records: 0,
+    pages: 1,
+    has_prev: false,
+    has_next: false,
   })
 
   const perPage = 10
@@ -113,16 +125,16 @@ export default function WalletTable({ loading: initialLoading = false }) {
         params.append("page", page.toString())
         params.append("take", perPage.toString())
 
-        if (searchQuery) {
-          params.append("search", searchQuery)
+        if (searchQuery.trim()) {
+          params.append("keyword", searchQuery.trim())
         }
 
         const res = await axiosClient.get(
           `${API_URL}/wallets/dashboard/list?${params.toString()}`
         )
 
-        const data = res.data.data.wallets
-        const meta = res.data.data.meta || res.data.data.pagination
+        const data = res.data.data.wallets || []
+        const paginationData = res.data.data.paginated
 
         const rows = data.map((w: Wallet) => {
           const { fullName, initials } = generateUserInfo(w.user)
@@ -147,12 +159,16 @@ export default function WalletTable({ loading: initialLoading = false }) {
 
         setWallets(rows)
         setPagination({
-          page: meta.page || 1,
-          pages: meta.pages || 1,
-          has_next: meta.has_next || false,
-          has_prev: meta.has_prev || false,
-          number_records: meta.number_records || rows.length,
-          take: meta.take || perPage,
+          keyword: paginationData.keyword || "",
+          page: paginationData.page || 1,
+          take: paginationData.take || perPage,
+          sort: paginationData.sort || "date_created",
+          sorted: paginationData.sorted || "desc",
+          to_date: paginationData.to_date || "",
+          number_records: paginationData.number_records || 0,
+          pages: paginationData.pages || 1,
+          has_prev: paginationData.has_prev || false,
+          has_next: paginationData.has_next || false,
         })
       } catch (err) {
         console.error("Error fetching wallets:", err)
@@ -163,7 +179,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
     }
 
     fetchWallets()
-  }, [page, searchQuery, perPage])
+  }, [page, searchQuery])
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
@@ -174,7 +190,12 @@ export default function WalletTable({ loading: initialLoading = false }) {
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <h3 className="text-base font-semibold text-gray-900">Wallet List</h3>
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">Wallet List</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Total wallets: {pagination.number_records.toLocaleString()}
+          </p>
+        </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative w-full sm:w-64">
@@ -233,8 +254,8 @@ export default function WalletTable({ loading: initialLoading = false }) {
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600">
-                        {r.initials}
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-semibold text-white">
+                        {r.initials || "?"}
                       </div>
                       <div>
                         <div className="text-sm font-medium text-gray-900">{r.name}</div>
@@ -267,50 +288,117 @@ export default function WalletTable({ loading: initialLoading = false }) {
 
       {/* Pagination */}
       <div className="flex flex-col md:flex-row items-center justify-between mt-6 gap-4">
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={!pagination.has_prev || loading}
-          className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${!pagination.has_prev || loading
-            ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
-            : "text-gray-600 border-gray-200 hover:bg-gray-50"
-            }`}
-        >
-          <ChevronLeft size={16} />
-          Previous
-        </button>
+        <div className="text-sm text-gray-600">
+          Page {pagination.page} of {pagination.pages} • Showing {wallets.length} of {pagination.number_records.toLocaleString()} records
+        </div>
 
-        <div className="flex items-center gap-1">
-          {Array.from({ length: pagination.pages || 1 }).map((_, i) => {
-            const num = i + 1
-            return (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={!pagination.has_prev || loading}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${!pagination.has_prev || loading
+              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+              : "text-gray-600 border-gray-200 hover:bg-gray-50"
+              }`}
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+
+          <div className="flex items-center gap-1">
+            {/* Show first page */}
+            <button
+              onClick={() => setPage(1)}
+              disabled={loading}
+              className={`w-8 h-8 rounded-lg text-sm font-medium transition ${page === 1
+                ? "bg-blue-600 text-white"
+                : loading
+                  ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                  : "text-gray-600 hover:bg-gray-100"
+                }`}
+            >
+              1
+            </button>
+
+            {/* Show ellipsis if there are hidden pages */}
+            {page > 3 && (
+              <span className="text-gray-400">...</span>
+            )}
+
+            {/* Show pages around current page */}
+            {Array.from({
+              length: Math.min(
+                5,
+                pagination.pages,
+                Math.max(0, page - 1) + Math.max(0, pagination.pages - page) + 1
+              ),
+            }).map((_, i) => {
+              let pageNum: number
+              if (pagination.pages <= 5) {
+                pageNum = i + 1
+              } else if (page <= 3) {
+                pageNum = i + 1
+              } else if (page >= pagination.pages - 2) {
+                pageNum = pagination.pages - 4 + i
+              } else {
+                pageNum = page - 2 + i
+              }
+
+              if (pageNum === 1 || pageNum === pagination.pages) {
+                return null
+              }
+
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  disabled={loading}
+                  className={`w-8 h-8 rounded-lg text-sm font-medium transition ${page === pageNum
+                    ? "bg-blue-600 text-white"
+                    : loading
+                      ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                      : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                >
+                  {pageNum}
+                </button>
+              )
+            })}
+
+            {/* Show ellipsis if there are hidden pages */}
+            {page < pagination.pages - 2 && (
+              <span className="text-gray-400">...</span>
+            )}
+
+            {/* Show last page if more than 1 page */}
+            {pagination.pages > 1 && (
               <button
-                key={num}
-                onClick={() => setPage(num)}
+                onClick={() => setPage(pagination.pages)}
                 disabled={loading}
-                className={`w-8 h-8 rounded-lg text-sm font-medium transition ${page === num
+                className={`w-8 h-8 rounded-lg text-sm font-medium transition ${page === pagination.pages
                   ? "bg-blue-600 text-white"
                   : loading
                     ? "text-gray-400 bg-gray-50 cursor-not-allowed"
                     : "text-gray-600 hover:bg-gray-100"
                   }`}
               >
-                {num}
+                {pagination.pages}
               </button>
-            )
-          })}
-        </div>
+            )}
+          </div>
 
-        <button
-          onClick={() => setPage((p) => Math.min(p + 1, pagination.pages || 1))}
-          disabled={!pagination.has_next || loading}
-          className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${!pagination.has_next || loading
-            ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
-            : "text-gray-600 border-gray-200 hover:bg-gray-50"
-            }`}
-        >
-          Next
-          <ChevronRight size={16} />
-        </button>
+          <button
+            onClick={() => setPage((p) => Math.min(p + 1, pagination.pages))}
+            disabled={!pagination.has_next || loading}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${!pagination.has_next || loading
+              ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
+              : "text-gray-600 border-gray-200 hover:bg-gray-50"
+              }`}
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
