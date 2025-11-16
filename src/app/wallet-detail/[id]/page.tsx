@@ -34,27 +34,14 @@ interface WalletDetail {
   userInitials: string;
   email: string;
   walletAddress: string;
+  userId: string | null;
+  userColor: string;
   currentBalance: number;
   totalDeposit: number;
   totalWithdrawal: number;
   totalReceived: number;
   chartData: { date: string; balance: number }[];
   assets: WalletAsset[];
-}
-
-// Helper function to generate user info with full name and initials
-function generateUserInfo(userData: { first_name: string | null; last_name: string | null; username: string }) {
-  const fullName = [userData.first_name, userData.last_name]
-    .filter(Boolean)
-    .join(" ") || userData.username || "No user info";
-
-  const initials = fullName
-    .split(" ")
-    .map((n) => n[0]?.toUpperCase())
-    .join("")
-    .slice(0, 2);
-
-  return { fullName, initials };
 }
 
 // --- Dynamic Color Generation ---
@@ -71,6 +58,38 @@ function getAssetColor(index: number) {
   return COLORS[index % COLORS.length];
 }
 
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
+}
+
+function getUserColor(userId: string | null): string {
+  if (!userId) {
+    return getAssetColor(0); // Default green for no user
+  }
+  const hash = hashCode(userId);
+  return getAssetColor(hash);
+}
+
+// Helper function to generate user info with full name and initials
+function generateUserInfo(userData: { first_name: string | null; last_name: string | null; username: string }) {
+  const fullName = [userData.first_name, userData.last_name]
+    .filter(Boolean)
+    .join(" ") || userData.username || "No user info";
+
+  const initials = fullName
+    .split(" ")
+    .map((n) => n[0]?.toUpperCase())
+    .join("")
+    .slice(0, 2);
+
+  return { fullName, initials };
+}
 
 // Skeleton loaders
 function UserInfoCardSkeleton() {
@@ -214,12 +233,16 @@ export default function WalletDetailPage() {
         }));
 
         const { fullName, initials } = generateUserInfo(apiData.user);
+        const userId = apiData.user.id;
+        const userColor = getUserColor(userId);
 
         setWallet({
           userName: fullName,
           userInitials: initials,
           email: apiData.user.email,
           walletAddress: apiData.wallet_address,
+          userId,
+          userColor,
           currentBalance: totalAssetsValue, // FIX: Use calculated total
           totalDeposit: apiData.total_deposit,
           totalWithdrawal: apiData.total_withdrawn,
@@ -393,8 +416,11 @@ export default function WalletDetailPage() {
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 mb-8">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-blue-600">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center shadow-sm"
+                    style={{ backgroundColor: wallet.userColor }}
+                  >
+                    <span className="text-2xl font-bold text-white">
                       {wallet.userInitials}
                     </span>
                   </div>
@@ -578,7 +604,10 @@ export default function WalletDetailPage() {
                         className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-sm"
+                            style={{ backgroundColor: asset.color }}
+                          >
                             {asset.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
