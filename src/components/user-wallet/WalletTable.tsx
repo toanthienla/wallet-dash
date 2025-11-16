@@ -28,6 +28,15 @@ type Row = {
   address: string
 }
 
+type PaginationMeta = {
+  page: number
+  pages: number
+  has_next: boolean
+  has_prev: boolean
+  number_records: number
+  take: number
+}
+
 function StatusPill({ status }: { status: Row["status"] }) {
   const map: Record<Row["status"], string> = {
     Active: "bg-green-100 text-green-700 border border-green-200",
@@ -83,6 +92,14 @@ export default function WalletTable({ loading: initialLoading = false }) {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(initialLoading)
   const [searchQuery, setSearchQuery] = useState("")
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    pages: 1,
+    has_next: false,
+    has_prev: false,
+    number_records: 0,
+    take: 10,
+  })
 
   const perPage = 10
 
@@ -90,8 +107,22 @@ export default function WalletTable({ loading: initialLoading = false }) {
     const fetchWallets = async () => {
       try {
         setLoading(true)
-        const res = await axiosClient.get(`${API_URL}/wallets/dashboard/list`)
+
+        // Build query parameters
+        const params = new URLSearchParams()
+        params.append("page", page.toString())
+        params.append("take", perPage.toString())
+
+        if (searchQuery) {
+          params.append("search", searchQuery)
+        }
+
+        const res = await axiosClient.get(
+          `${API_URL}/wallets/dashboard/list?${params.toString()}`
+        )
+
         const data = res.data.data.wallets
+        const meta = res.data.data.meta || res.data.data.pagination
 
         const rows = data.map((w: Wallet) => {
           const { fullName, initials } = generateUserInfo(w.user)
@@ -115,6 +146,14 @@ export default function WalletTable({ loading: initialLoading = false }) {
         })
 
         setWallets(rows)
+        setPagination({
+          page: meta.page || 1,
+          pages: meta.pages || 1,
+          has_next: meta.has_next || false,
+          has_prev: meta.has_prev || false,
+          number_records: meta.number_records || rows.length,
+          take: meta.take || perPage,
+        })
       } catch (err) {
         console.error("Error fetching wallets:", err)
         setWallets([])
@@ -124,20 +163,11 @@ export default function WalletTable({ loading: initialLoading = false }) {
     }
 
     fetchWallets()
-  }, [page])
-
-  const filteredWallets = wallets.filter((wallet) =>
-    wallet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    wallet.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    wallet.id.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const pages = Math.ceil(filteredWallets.length / perPage)
-  const visible = filteredWallets.slice((page - 1) * perPage, page * perPage)
+  }, [page, searchQuery, perPage])
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
-    setPage(1)
+    setPage(1) // Reset to first page on search
   }
 
   return (
@@ -184,7 +214,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
                   <TableRowSkeleton key={`skeleton-${i}`} />
                 ))}
               </>
-            ) : visible.length === 0 ? (
+            ) : wallets.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center py-12 text-gray-500">
                   <div className="flex flex-col items-center justify-center">
@@ -196,7 +226,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
                 </td>
               </tr>
             ) : (
-              visible.map((r) => (
+              wallets.map((r) => (
                 <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
                   <td className="py-4 px-6 font-mono text-xs text-gray-500">
                     {r.id.length > 20 ? `${r.id.slice(0, 20)}...` : r.id}
@@ -239,8 +269,8 @@ export default function WalletTable({ loading: initialLoading = false }) {
       <div className="flex flex-col md:flex-row items-center justify-between mt-6 gap-4">
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1 || loading}
-          className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${page === 1 || loading
+          disabled={!pagination.has_prev || loading}
+          className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${!pagination.has_prev || loading
             ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
             : "text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
@@ -250,7 +280,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
         </button>
 
         <div className="flex items-center gap-1">
-          {Array.from({ length: pages || 1 }).map((_, i) => {
+          {Array.from({ length: pagination.pages || 1 }).map((_, i) => {
             const num = i + 1
             return (
               <button
@@ -271,9 +301,9 @@ export default function WalletTable({ loading: initialLoading = false }) {
         </div>
 
         <button
-          onClick={() => setPage((p) => Math.min(p + 1, pages || 1))}
-          disabled={page === pages || loading}
-          className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${page === pages || loading
+          onClick={() => setPage((p) => Math.min(p + 1, pagination.pages || 1))}
+          disabled={!pagination.has_next || loading}
+          className={`flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium transition ${!pagination.has_next || loading
             ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
             : "text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
