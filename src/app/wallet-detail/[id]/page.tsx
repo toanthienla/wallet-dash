@@ -6,7 +6,6 @@ import AppHeader from "@/layout/AppHeader";
 import { ArrowLeft, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import Image from "next/image";
 import {
   ResponsiveContainer,
   LineChart,
@@ -28,8 +27,6 @@ interface WalletAsset {
   amount: string;
   percentage: number;
   color: string;
-  icon: string; // Direct image URL
-  fullName: string;
 }
 
 interface WalletDetail {
@@ -196,33 +193,6 @@ function TransactionTableSkeleton() {
   );
 }
 
-// Asset icon component with fallback
-function AssetIcon({ icon, name }: { icon: string; name: string }) {
-  const [imageError, setImageError] = useState(false);
-
-  if (imageError) {
-    return (
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center text-xs font-semibold text-white flex-shrink-0"
-        style={{ backgroundImage: `linear-gradient(135deg, ${COLORS[0]}, ${COLORS[2]})` }}>
-        {name.slice(0, 2).toUpperCase()}
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-      <Image
-        src={icon}
-        alt={name}
-        width={32}
-        height={32}
-        className="w-full h-full object-cover"
-        onError={() => setImageError(true)}
-      />
-    </div>
-  );
-}
-
 export default function WalletDetailPage() {
   const params = useParams();
   const walletAddress = params.id as string;
@@ -251,16 +221,15 @@ export default function WalletDetailPage() {
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
         const apiData = res.data?.data;
 
-        // Calculate total balance from the 'balances' array
+        // FIX: Calculate total balance from the 'balances' array
         const totalAssetsValue = apiData.balances.reduce((sum: number, asset: any) => sum + asset.total_value, 0);
 
         const assets = apiData.balances.map((b: any, i: number) => ({
           name: b.currency.name,
-          fullName: b.currency.full_name,
           amount: b.assets.toFixed(4),
+          // FIX: Prevent division by zero
           percentage: totalAssetsValue > 0 ? parseFloat(((b.total_value / totalAssetsValue) * 100).toFixed(2)) : 0,
           color: getAssetColor(i),
-          icon: b.currency.link, // Direct image URL from API
         }));
 
         const { fullName, initials } = generateUserInfo(apiData.user);
@@ -274,7 +243,7 @@ export default function WalletDetailPage() {
           walletAddress: apiData.wallet_address,
           userId,
           userColor,
-          currentBalance: totalAssetsValue,
+          currentBalance: totalAssetsValue, // FIX: Use calculated total
           totalDeposit: apiData.total_deposit,
           totalWithdrawal: apiData.total_withdrawn,
           totalReceived: apiData.total_received,
@@ -306,6 +275,7 @@ export default function WalletDetailPage() {
           id: tx.hash ?? "-",
           type: tx.transaction_type?.name ?? "-",
           amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
+          // FIX: Correctly access the asset full name
           asset: tx.currency?.full_name || tx.currency_slug.toUpperCase(),
           address: tx.from_address || tx.to_address || "-",
           status: tx.transaction_status,
@@ -335,11 +305,12 @@ export default function WalletDetailPage() {
 
         if (res.data.labels && res.data.data[0]?.values) {
           const chartData = res.data.labels.map((label: string, i: number) => ({
-            date: new Date(label).toLocaleDateString(),
+            date: new Date(label).toLocaleDateString(), // Use toLocaleDateString for cleaner date format
             balance: res.data.data[0].values[i],
           }));
           setWallet((prev) => (prev ? { ...prev, chartData } : null));
         } else {
+          // Handle case with no chart data
           setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
         }
       } catch (err) {
@@ -633,7 +604,12 @@ export default function WalletDetailPage() {
                         className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
                       >
                         <div className="flex items-center gap-3">
-                          <AssetIcon icon={asset.icon} name={asset.name} />
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-sm"
+                            style={{ backgroundColor: asset.color }}
+                          >
+                            {asset.name.slice(0, 2).toUpperCase()}
+                          </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">
                               {asset.name}
