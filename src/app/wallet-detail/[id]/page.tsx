@@ -6,6 +6,7 @@ import AppHeader from "@/layout/AppHeader";
 import { ArrowLeft, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import {
   ResponsiveContainer,
   LineChart,
@@ -27,6 +28,8 @@ interface WalletAsset {
   amount: string;
   percentage: number;
   color: string;
+  icon: string; // Add icon URL
+  fullName: string;
 }
 
 interface WalletDetail {
@@ -226,10 +229,12 @@ export default function WalletDetailPage() {
 
         const assets = apiData.balances.map((b: any, i: number) => ({
           name: b.currency.name,
+          fullName: b.currency.full_name,
           amount: b.assets.toFixed(4),
           // FIX: Prevent division by zero
           percentage: totalAssetsValue > 0 ? parseFloat(((b.total_value / totalAssetsValue) * 100).toFixed(2)) : 0,
           color: getAssetColor(i),
+          icon: b.currency.link, // Get icon URL from API
         }));
 
         const { fullName, initials } = generateUserInfo(apiData.user);
@@ -604,11 +609,23 @@ export default function WalletDetailPage() {
                         className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
                       >
                         <div className="flex items-center gap-3">
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-sm"
-                            style={{ backgroundColor: asset.color }}
-                          >
-                            {asset.name.slice(0, 2).toUpperCase()}
+                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600 flex-shrink-0 overflow-hidden">
+                            {asset.icon ? (
+                              <Image
+                                src={asset.icon}
+                                alt={asset.name}
+                                width={32}
+                                height={32}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Fallback to initials if image fails to load
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <span>{asset.name.slice(0, 2).toUpperCase()}</span>
+                            )}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">
