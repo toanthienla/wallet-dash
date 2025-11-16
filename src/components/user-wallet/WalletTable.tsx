@@ -30,6 +30,7 @@ type Row = {
   transactions: string
   amount: string
   address: string
+  userId: string | null
 }
 
 type PaginationMeta = {
@@ -43,6 +44,38 @@ type PaginationMeta = {
   pages: number
   has_prev: boolean
   has_next: boolean
+}
+
+// --- Dynamic Color Generation ---
+const COLORS = [
+  "#10b981", // green-500
+  "#f97316", // orange-500
+  "#3b82f6", // blue-500
+  "#a855f7", // purple-500
+  "#ef4444", // red-500
+  "#f59e0b", // amber-500
+]
+
+function getAssetColor(index: number) {
+  return COLORS[index % COLORS.length]
+}
+
+function hashCode(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = (hash << 5) - hash + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return Math.abs(hash)
+}
+
+function getUserColor(userId: string | null): string {
+  if (!userId) {
+    return getAssetColor(0) // Default green for no user
+  }
+  const hash = hashCode(userId)
+  return getAssetColor(hash)
 }
 
 function StatusPill({ status }: { status: Row["status"] }) {
@@ -154,6 +187,7 @@ export default function WalletTable({ loading: initialLoading = false }) {
               ? `${w.total_transactions_today} transactions today`
               : "No transactions",
             amount: `$${w.assets.toLocaleString()}`,
+            userId: w.user.id,
           }
         })
 
@@ -254,7 +288,10 @@ export default function WalletTable({ loading: initialLoading = false }) {
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-semibold text-white">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-sm"
+                        style={{ backgroundColor: getUserColor(r.userId) }}
+                      >
                         {r.initials || "?"}
                       </div>
                       <div>
