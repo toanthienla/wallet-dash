@@ -29,6 +29,17 @@ interface WalletAsset {
   color: string;
 }
 
+interface Transaction {
+  date: string;
+  id: string;
+  type: string;
+  amount: string;
+  asset: string;
+  assetType: string;
+  address: string;
+  status: string;
+}
+
 interface WalletDetail {
   userName: string;
   userInitials: string;
@@ -89,6 +100,29 @@ function generateUserInfo(userData: { first_name: string | null; last_name: stri
     .slice(0, 2);
 
   return { fullName, initials };
+}
+
+// Function to get asset type badge styling
+function getAssetTypeBadgeStyle(assetType: string): { bgColor: string; textColor: string; label: string } {
+  const types: Record<string, { bgColor: string; textColor: string; label: string }> = {
+    fiat: {
+      bgColor: "bg-blue-100",
+      textColor: "text-blue-700",
+      label: "Fiat",
+    },
+    native: {
+      bgColor: "bg-amber-100",
+      textColor: "text-amber-700",
+      label: "Native",
+    },
+    crypto: {
+      bgColor: "bg-purple-100",
+      textColor: "text-purple-700",
+      label: "Crypto",
+    },
+  };
+
+  return types[assetType] || { bgColor: "bg-gray-100", textColor: "text-gray-700", label: "Unknown" };
 }
 
 // Skeleton loaders
@@ -200,7 +234,7 @@ export default function WalletDetailPage() {
   const [wallet, setWallet] = useState<WalletDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
   // --- Pagination State & Logic ---
@@ -270,13 +304,15 @@ export default function WalletDetailPage() {
         const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`);
         const data = res.data?.data?.transactions || [];
 
-        const formatted = data.map((tx: any) => ({
+        const formatted: Transaction[] = data.map((tx: any) => ({
           date: new Date(tx.date_created).toLocaleString(),
           id: tx.hash ?? "-",
           type: tx.transaction_type?.name ?? "-",
           amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
           // FIX: Correctly access the asset full name
           asset: tx.currency?.full_name || tx.currency_slug.toUpperCase(),
+          // NEW: Add asset type from currency object
+          assetType: tx.currency?.asset_type ?? "-",
           address: tx.from_address || tx.to_address || "-",
           status: tx.transaction_status,
         }));
@@ -669,37 +705,49 @@ export default function WalletDetailPage() {
                         </td>
                       </tr>
                     ) : (
-                      paginatedTransactions.map((t, i) => (
-                        <tr key={i} className="border-b hover:bg-gray-50">
-                          <td className="py-3 px-6">{t.date}</td>
-                          <td className="py-3 px-6 text-blue-600 font-mono text-xs">
-                            {t.id.length > 20 ? `${t.id.slice(0, 20)}...` : t.id}
-                          </td>
-                          <td className="py-3 px-6">{t.type}</td>
-                          <td className="py-3 px-6">{t.amount}</td>
-                          <td className="py-3 px-6 text-indigo-500">{t.asset}</td>
-                          <td className="py-3 px-6 text-xs">
-                            {t.address.length > 20 ? `${t.address.slice(0, 20)}...` : t.address}
-                          </td>
-                          <td className="py-3 px-6">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${t.status === "success"
-                                ? "bg-green-50 text-green-600"
-                                : t.status === "pending"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : "bg-red-50 text-red-600"
-                                }`}
-                            >
-                              {t.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-6 text-right">
-                            <button className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700 transition">
-                              View detail
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                      paginatedTransactions.map((t, i) => {
+                        const assetTypeStyle = getAssetTypeBadgeStyle(t.assetType);
+                        return (
+                          <tr key={i} className="border-b hover:bg-gray-50">
+                            <td className="py-3 px-6">{t.date}</td>
+                            <td className="py-3 px-6 text-blue-600 font-mono text-xs">
+                              {t.id.length > 20 ? `${t.id.slice(0, 20)}...` : t.id}
+                            </td>
+                            <td className="py-3 px-6">{t.type}</td>
+                            <td className="py-3 px-6">{t.amount}</td>
+                            <td className="py-3 px-6">
+                              <div className="flex items-center gap-2">
+                                <span className="text-indigo-500 font-medium">{t.asset}</span>
+                                <span
+                                  className={`text-xs font-medium px-2 py-1 rounded-full ${assetTypeStyle.bgColor} ${assetTypeStyle.textColor}`}
+                                >
+                                  {assetTypeStyle.label}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-6 text-xs">
+                              {t.address.length > 20 ? `${t.address.slice(0, 20)}...` : t.address}
+                            </td>
+                            <td className="py-3 px-6">
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${t.status === "success"
+                                  ? "bg-green-50 text-green-600"
+                                  : t.status === "pending"
+                                    ? "bg-blue-50 text-blue-600"
+                                    : "bg-red-50 text-red-600"
+                                  }`}
+                              >
+                                {t.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-6 text-right">
+                              <button className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700 transition">
+                                View detail
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
