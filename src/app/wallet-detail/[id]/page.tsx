@@ -745,7 +745,7 @@ export default function WalletDetailPage() {
                       transactions.map((t, i) => (
                         <tr key={i} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-6">{t.date}</td>
-                          <td className="py-3 px-6 font-mono text-xs font-semibold">
+                          <td className="py-3 px-6">
                             {t.id}
                           </td>
                           <td className="py-3 px-6">{t.type}</td>
