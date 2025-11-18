@@ -17,7 +17,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from "recharts";
 import { API_URL } from "@/utils/constants";
 import axiosClient from "@/utils/axiosClient";
@@ -54,7 +53,6 @@ interface AssetCategory {
   label: string;
   totalValue: number;
   percentage: number;
-  displayPercentage: number; // For pie chart display
   color: string;
 }
 
@@ -165,44 +163,6 @@ function parsePnL(pnlStr: string): { value: number; isPositive: boolean } {
     value: Math.abs(value),
     isPositive: value >= 0,
   };
-}
-
-/**
- * Calculate display percentages for pie chart
- * Ensures very small percentages are still visible
- * Minimum slice size: 2.5% for visibility
- */
-function calculateDisplayPercentages(categories: AssetCategory[]): AssetCategory[] {
-  const MIN_DISPLAY_PERCENTAGE = 2.5;
-
-  // Separate items into visible and invisible
-  const visible = categories.filter(cat => cat.percentage >= MIN_DISPLAY_PERCENTAGE);
-  const invisible = categories.filter(cat => cat.percentage < MIN_DISPLAY_PERCENTAGE);
-
-  if (invisible.length === 0) {
-    return categories;
-  }
-
-  // Calculate space needed for invisible items
-  const invisibleTotal = invisible.reduce((sum, cat) => sum + cat.percentage, 0);
-  const spacesNeeded = invisible.length;
-  const spacePerItem = MIN_DISPLAY_PERCENTAGE;
-
-  // Reduce visible items proportionally to make space
-  const totalReduction = spacesNeeded * spacePerItem;
-  const visibleTotal = visible.reduce((sum, cat) => sum + cat.percentage, 0);
-
-  const adjustedVisible = visible.map(cat => ({
-    ...cat,
-    displayPercentage: cat.percentage - (cat.percentage / visibleTotal) * totalReduction,
-  }));
-
-  const adjustedInvisible = invisible.map(cat => ({
-    ...cat,
-    displayPercentage: MIN_DISPLAY_PERCENTAGE,
-  }));
-
-  return [...adjustedVisible, ...adjustedInvisible];
 }
 
 // Skeleton loaders
@@ -356,7 +316,7 @@ export default function WalletDetailPage() {
         });
 
         // Create asset categories
-        let assetCategories: AssetCategory[] = [];
+        const assetCategories: AssetCategory[] = [];
         Object.entries(groupedByType).forEach(([type, balances]) => {
           const categoryTotal = balances.reduce((sum, b) => sum + b.total_value, 0);
           const percentage = totalAssetsValue > 0 ? parseFloat(((categoryTotal / totalAssetsValue) * 100).toFixed(2)) : 0;
@@ -366,13 +326,9 @@ export default function WalletDetailPage() {
             label: ASSET_TYPE_LABELS[type] || type,
             totalValue: categoryTotal,
             percentage,
-            displayPercentage: percentage, // Will be updated
             color: ASSET_TYPE_COLORS[type] || getAssetColor(Object.keys(groupedByType).indexOf(type)),
           });
         });
-
-        // Calculate display percentages for pie chart
-        assetCategories = calculateDisplayPercentages(assetCategories);
 
         const balances = apiData.balances;
         const { fullName, initials } = generateUserInfo(apiData.user);
@@ -731,12 +687,10 @@ export default function WalletDetailPage() {
                           <Pie
                             data={wallet.assetCategories.map((cat) => ({
                               name: cat.label,
-                              value: cat.displayPercentage,
-                              originalPercentage: cat.percentage,
+                              value: cat.percentage,
                             }))}
                             innerRadius={60}
                             outerRadius={80}
-                            paddingAngle={2}
                             dataKey="value"
                           >
                             {wallet.assetCategories.map((cat, i) => (
@@ -757,7 +711,7 @@ export default function WalletDetailPage() {
                     </div>
                   </div>
 
-                  {/* Legend - Shows actual percentages */}
+                  {/* Legend */}
                   <div className="space-y-4 ml-8 flex-1">
                     {wallet.assetCategories.map((cat, i) => (
                       <div key={i} className="flex items-center gap-3">
@@ -773,26 +727,11 @@ export default function WalletDetailPage() {
                               maximumFractionDigits: 2,
                             })}
                           </p>
-                          {cat.percentage < 2.5 && (
-                            <p className="text-xs text-amber-600 font-medium">
-                              (Display: {cat.displayPercentage.toFixed(1)}%)
-                            </p>
-                          )}
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-
-                {/* Info notice for small percentages */}
-                {wallet.assetCategories.some(cat => cat.percentage < 2.5) && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      💡 <span className="font-medium">Note:</span> Very small percentages (&lt;2.5%) are enlarged in the pie chart for visibility.
-                      Actual percentages are shown in the legend.
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Asset List */}
@@ -804,7 +743,7 @@ export default function WalletDetailPage() {
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-2 max-h-80 overflow-y-auto">
                   {wallet.balances.length === 0 ? (
                     <p className="text-center py-6 text-gray-500">No assets found</p>
                   ) : (
