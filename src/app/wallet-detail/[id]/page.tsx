@@ -60,6 +60,10 @@ interface PaginationMeta {
   totalPages: number;
   currentPage: number;
   itemsPerPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  nextCursor: string | null;
+  prevCursor: string | null;
 }
 
 // --- Dynamic Color Generation ---
@@ -234,7 +238,14 @@ export default function WalletDetailPage() {
     totalPages: 1,
     currentPage: 1,
     itemsPerPage: 10,
+    hasNext: false,
+    hasPrev: false,
+    nextCursor: null,
+    prevCursor: null,
   });
+
+  // Store cursors for navigation
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
 
   // ✅ Fetch Wallet Details
   useEffect(() => {
@@ -285,44 +296,58 @@ export default function WalletDetailPage() {
     fetchWallet();
   }, [walletAddress]);
 
-  // ✅ Fetch Transaction History with Pagination
+  // ✅ Fetch Transaction History with Cursor-Based Pagination
   useEffect(() => {
     if (!walletAddress) return;
 
     const fetchTransactions = async () => {
       try {
         setLoadingTx(true);
+        const params: any = {
+          limit: 10,
+        };
+
+        // Use cursor for pagination if on page > 1
+        if (currentPage > 1 && cursorHistory.length > 0) {
+          params.cursor = cursorHistory[currentPage - 2];
+        }
+
         const res = await axiosClient.get(
           `${API_URL}/transaction/dashboard/${walletAddress}`,
-          {
-            params: {
-              page: currentPage,
-              limit: paginationMeta.itemsPerPage,
-            },
-          }
+          { params }
         );
-        const responseData = res.data?.data;
 
-        // Handle pagination metadata from API
-        const totalItems = responseData?.pagination?.total || responseData?.totalItems || 0;
-        const totalPages = responseData?.pagination?.total_pages || responseData?.totalPages || 1;
-        const itemsPerPage = responseData?.pagination?.per_page || responseData?.itemsPerPage || 10;
+        const responseData = res.data?.data;
+        const paginatedInfo = responseData?.paginated || {};
+
+        // Calculate total pages
+        const totalRecords = paginatedInfo.number_records || 0;
+        const limit = paginatedInfo.limit || 10;
+        const totalPages = Math.ceil(totalRecords / limit);
 
         setPaginationMeta({
-          totalItems,
+          totalItems: totalRecords,
           totalPages,
           currentPage,
-          itemsPerPage,
+          itemsPerPage: limit,
+          hasNext: paginatedInfo.has_next || false,
+          hasPrev: paginatedInfo.has_prev || false,
+          nextCursor: paginatedInfo.next_cursor || null,
+          prevCursor: paginatedInfo.prev_cursor || null,
         });
+
+        // Update cursor history for forward/backward navigation
+        if (paginatedInfo.next_cursor && !cursorHistory.includes(paginatedInfo.next_cursor)) {
+          setCursorHistory((prev) => [...prev, paginatedInfo.next_cursor]);
+        }
 
         const transactions_data = responseData?.transactions || [];
 
         const formatted = transactions_data.map((tx: any) => ({
           date: new Date(tx.date_created).toLocaleString(),
-          id: tx.hash ?? "-",
+          id: tx.id?.toString() ?? "-", // ✅ Use tx.id instead of tx.hash
           type: tx.transaction_type?.name ?? "-",
           amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
-          // FIX: Use asset_type from currency_data
           asset: tx.currency_data?.asset_type ?? "-",
           assetType: tx.currency_data?.asset_type ?? "-",
           address: tx.from_address || tx.to_address || "-",
@@ -720,8 +745,8 @@ export default function WalletDetailPage() {
                       transactions.map((t, i) => (
                         <tr key={i} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-6">{t.date}</td>
-                          <td className="py-3 px-6 text-blue-600 font-mono text-xs">
-                            {t.id.length > 20 ? `${t.id.slice(0, 20)}...` : t.id}
+                          <td className="py-3 px-6 text-blue-600 font-mono text-xs font-semibold">
+                            {t.id}
                           </td>
                           <td className="py-3 px-6">{t.type}</td>
                           <td className="py-3 px-6">{t.amount}</td>
@@ -757,54 +782,62 @@ export default function WalletDetailPage() {
                 </table>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between mt-6">
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-100">
                 <div className="text-sm text-gray-600">
-                  Showing {transactions.length === 0 ? 0 : (currentPage - 1) * paginationMeta.itemsPerPage + 1} to{" "}
-                  {Math.min(currentPage * paginationMeta.itemsPerPage, paginationMeta.totalItems)} of{" "}
-                  {paginationMeta.totalItems} transactions
+                  {transactions.length === 0 ? (
+                    <span>No transactions to display</span>
+                  ) : (
+                    <>
+                      Showing {(currentPage - 1) * paginationMeta.itemsPerPage + 1} to{" "}
+                      {Math.min(currentPage * paginationMeta.itemsPerPage, paginationMeta.totalItems)} of{" "}
+                      <span className="font-semibold">{paginationMeta.totalItems}</span> transactions
+                    </>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <button
-                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition ${currentPage === 1
+                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${currentPage === 1 || !paginationMeta.hasPrev
                       ? "text-gray-400 cursor-not-allowed bg-gray-50"
-                      : "text-gray-600 hover:bg-gray-50"
+                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`}
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1 || !paginationMeta.hasPrev}
+                    onClick={() => {
+                      if (currentPage > 1) {
+                        setCurrentPage((prev) => prev - 1);
+                      }
+                    }}
                   >
-                    ← Previous
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Previous
                   </button>
 
                   <div className="flex items-center gap-2">
-                    {Array.from({ length: paginationMeta.totalPages || 1 }).map((_, i) => (
-                      <button
-                        key={i}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition ${i + 1 === currentPage
-                          ? "bg-blue-600 text-white"
-                          : "text-gray-600 hover:bg-gray-100"
-                          }`}
-                        onClick={() => setCurrentPage(i + 1)}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
+                    <span className="text-sm text-gray-600">
+                      Page <span className="font-semibold">{currentPage}</span> of{" "}
+                      <span className="font-semibold">{paginationMeta.totalPages}</span>
+                    </span>
                   </div>
 
                   <button
-                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition ${currentPage === paginationMeta.totalPages
+                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${!paginationMeta.hasNext
                       ? "text-gray-400 cursor-not-allowed bg-gray-50"
-                      : "text-gray-600 hover:bg-gray-50"
+                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`}
-                    disabled={currentPage === paginationMeta.totalPages}
-                    onClick={() =>
-                      setCurrentPage((prev) =>
-                        Math.min(prev + 1, paginationMeta.totalPages)
-                      )
-                    }
+                    disabled={!paginationMeta.hasNext}
+                    onClick={() => {
+                      if (paginationMeta.hasNext) {
+                        setCurrentPage((prev) => prev + 1);
+                      }
+                    }}
                   >
-                    Next →
+                    Next
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </button>
                 </div>
               </div>
