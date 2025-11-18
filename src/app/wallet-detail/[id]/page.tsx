@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import AppSidebar from "@/layout/AppSidebar";
 import AppHeader from "@/layout/AppHeader";
@@ -212,7 +212,7 @@ function TransactionTableSkeleton() {
 
 export default function WalletDetailPage() {
   const params = useParams();
-  const walletAddress = params.id as string;
+  const walletAddress = (params as any)?.id as string;
 
   const [wallet, setWallet] = useState<WalletDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -223,6 +223,10 @@ export default function WalletDetailPage() {
   // Chart / PnL state
   const [pnl, setPnl] = useState<number | null>(null);
   const [pnlPercent, setPnlPercent] = useState<number | null>(null);
+
+  // showAll toggle for chart - when false show last N points, when true show all points
+  const [showAllDates, setShowAllDates] = useState(false);
+  const LIST_MAX_POINTS = 20; // default points to show when "Show all" is off
 
   // --- Pagination State & Logic ---
   const [currentPage, setCurrentPage] = useState(1);
@@ -339,9 +343,8 @@ export default function WalletDetailPage() {
         // Use the minimum length (defensive) in case labels/values mismatch
         const len = Math.min(labels.length, values.length);
 
-        const chartData = [];
+        const chartData: { date: string; balance: number }[] = [];
         for (let i = 0; i < len; i++) {
-          // Use toLocaleString to show date+time in user's locale
           const dt = labels[i] ? new Date(labels[i]) : null;
           chartData.push({
             date: dt ? dt.toLocaleString() : labels[i] ?? String(i),
@@ -371,6 +374,14 @@ export default function WalletDetailPage() {
 
     fetchWalletChart();
   }, [walletAddress]);
+
+  // Memoized visible chart data (either all points or the last N)
+  const visibleChartData = useMemo(() => {
+    if (!wallet?.chartData || wallet.chartData.length === 0) return [];
+    if (showAllDates) return wallet.chartData;
+    // Return last LIST_MAX_POINTS points
+    return wallet.chartData.slice(Math.max(0, wallet.chartData.length - LIST_MAX_POINTS));
+  }, [wallet, showAllDates]);
 
   if (loading) {
     return (
@@ -556,23 +567,56 @@ export default function WalletDetailPage() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Show All Dates Toggle */}
+                  <div className="flex items-center gap-2 ml-3">
+                    <label className="text-sm text-gray-600">Show all dates</label>
+                    <button
+                      onClick={() => setShowAllDates((s) => !s)}
+                      className={`px-3 py-1 rounded-full text-sm font-medium border ${showAllDates ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+                      aria-pressed={showAllDates}
+                    >
+                      {showAllDates ? "All" : `Last ${LIST_MAX_POINTS}`}
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div className="h-80">
-                {wallet.chartData && wallet.chartData.length > 0 ? (
+                {visibleChartData && visibleChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={wallet.chartData}>
+                    <LineChart data={visibleChartData}>
                       <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                      <XAxis dataKey="date" stroke="#9CA3AF" />
+                      <XAxis
+                        dataKey="date"
+                        stroke="#9CA3AF"
+                        tickFormatter={(value) => {
+                          // If showing all points, show shorter date to avoid overlap
+                          if (showAllDates) {
+                            // try to show time only if space is limited
+                            try {
+                              const d = new Date(value);
+                              return d.toLocaleTimeString();
+                            } catch {
+                              return String(value);
+                            }
+                          } else {
+                            // show date and time for fewer points
+                            return value;
+                          }
+                        }}
+                        interval="preserveEnd"
+                        minTickGap={10}
+                      />
                       <YAxis stroke="#9CA3AF" />
-                      <Tooltip />
+                      <Tooltip labelFormatter={(label) => `Time: ${label}`} />
                       <Line
                         type="monotone"
                         dataKey="balance"
                         stroke="#2563EB"
                         strokeWidth={2.5}
                         dot={false}
+                        isAnimationActive={false}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -816,4 +860,4 @@ export default function WalletDetailPage() {
       </div>
     </div>
   );
-}
+} 
