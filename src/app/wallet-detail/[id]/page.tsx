@@ -1,9 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
-
 import AppSidebar from "@/layout/AppSidebar";
 import AppHeader from "@/layout/AppHeader";
-import { ArrowLeft, MoreHorizontal, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -94,7 +93,7 @@ interface PaginationMeta {
   prevCursor: string | null;
 }
 
-// --- Dynamic Color Generation ---
+// Colors
 const COLORS = [
   "#10b981", // green-500
   "#f97316", // orange-500
@@ -105,9 +104,9 @@ const COLORS = [
 ];
 
 const ASSET_TYPE_COLORS: { [key: string]: string } = {
-  fiat: "#3b82f6", // blue
-  crypto: "#a855f7", // purple
-  native: "#10b981", // green
+  fiat: "#3b82f6",
+  crypto: "#a855f7",
+  native: "#10b981",
 };
 
 const ASSET_TYPE_LABELS: { [key: string]: string } = {
@@ -116,6 +115,7 @@ const ASSET_TYPE_LABELS: { [key: string]: string } = {
   native: "Native",
 };
 
+// Utility Functions
 function getAssetColor(index: number) {
   return COLORS[index % COLORS.length];
 }
@@ -131,17 +131,20 @@ function hashCode(str: string): number {
 }
 
 function getUserColor(userId: string | null): string {
-  if (!userId) {
-    return getAssetColor(0);
-  }
+  if (!userId) return getAssetColor(0);
   const hash = hashCode(userId);
   return getAssetColor(hash);
 }
 
-function generateUserInfo(userData: { first_name: string | null; last_name: string | null; username: string }) {
-  const fullName = [userData.first_name, userData.last_name]
-    .filter(Boolean)
-    .join(" ") || userData.username || "No user info";
+function generateUserInfo(userData: {
+  first_name: string | null;
+  last_name: string | null;
+  username: string;
+}) {
+  const fullName =
+    [userData.first_name, userData.last_name].filter(Boolean).join(" ") ||
+    userData.username ||
+    "No user info";
 
   const initials = fullName
     .split(" ")
@@ -165,7 +168,7 @@ function parsePnL(pnlStr: string): { value: number; isPositive: boolean } {
   };
 }
 
-// Skeleton loaders
+// Skeleton Components
 function UserInfoCardSkeleton() {
   return (
     <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 mb-8 animate-pulse">
@@ -225,7 +228,10 @@ function AssetSectionSkeleton() {
         <div className="h-6 bg-gray-200 rounded w-32 mb-6"></div>
         <div className="space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+            <div
+              key={i}
+              className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0"
+            >
               <div className="flex items-center gap-3 flex-1">
                 <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
                 <div className="flex-1">
@@ -267,6 +273,7 @@ function TransactionTableSkeleton() {
   );
 }
 
+// Main Component
 export default function WalletDetailPage() {
   const params = useParams();
   const walletAddress = params.id as string;
@@ -277,7 +284,7 @@ export default function WalletDetailPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
-  // --- Pagination State & Logic ---
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>({
     totalItems: 0,
@@ -290,8 +297,8 @@ export default function WalletDetailPage() {
     prevCursor: null,
   });
 
-  // Store cursors for navigation
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+  const [pageSize, setPageSize] = useState(10);
 
   // ✅ Fetch Wallet Details
   useEffect(() => {
@@ -302,10 +309,11 @@ export default function WalletDetailPage() {
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
         const apiData = res.data?.data;
 
-        // Calculate total balance from the 'balances' array
-        const totalAssetsValue = apiData.balances.reduce((sum: number, balance: Balance) => sum + balance.total_value, 0);
+        const totalAssetsValue = apiData.balances.reduce(
+          (sum: number, balance: Balance) => sum + balance.total_value,
+          0
+        );
 
-        // Group balances by asset type
         const groupedByType: { [key: string]: Balance[] } = {};
         apiData.balances.forEach((balance: Balance) => {
           const assetType = balance.currency.asset_type || "unknown";
@@ -315,11 +323,13 @@ export default function WalletDetailPage() {
           groupedByType[assetType].push(balance);
         });
 
-        // Create asset categories
         const assetCategories: AssetCategory[] = [];
         Object.entries(groupedByType).forEach(([type, balances]) => {
           const categoryTotal = balances.reduce((sum, b) => sum + b.total_value, 0);
-          const percentage = totalAssetsValue > 0 ? parseFloat(((categoryTotal / totalAssetsValue) * 100).toFixed(2)) : 0;
+          const percentage =
+            totalAssetsValue > 0
+              ? parseFloat(((categoryTotal / totalAssetsValue) * 100).toFixed(2))
+              : 0;
 
           assetCategories.push({
             type,
@@ -369,7 +379,7 @@ export default function WalletDetailPage() {
       try {
         setLoadingTx(true);
         const params: any = {
-          limit: 10,
+          limit: pageSize,
         };
 
         // Use cursor for pagination if on page > 1
@@ -377,17 +387,16 @@ export default function WalletDetailPage() {
           params.cursor = cursorHistory[currentPage - 2];
         }
 
-        const res = await axiosClient.get(
-          `${API_URL}/transaction/dashboard/${walletAddress}`,
-          { params }
-        );
+        const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`, {
+          params,
+        });
 
         const responseData = res.data?.data;
         const paginatedInfo = responseData?.paginated || {};
 
         // Calculate total pages
         const totalRecords = paginatedInfo.number_records || 0;
-        const limit = paginatedInfo.limit || 10;
+        const limit = paginatedInfo.limit || pageSize;
         const totalPages = Math.ceil(totalRecords / limit);
 
         setPaginationMeta({
@@ -429,9 +438,9 @@ export default function WalletDetailPage() {
     };
 
     fetchTransactions();
-  }, [walletAddress, currentPage]);
+  }, [walletAddress, currentPage, pageSize]);
 
-  // ✅ Fetch Chart Data from statistic-total-assets API
+  // ✅ Fetch Chart Data
   useEffect(() => {
     if (!walletAddress) return;
 
@@ -457,6 +466,20 @@ export default function WalletDetailPage() {
 
     fetchWalletChart();
   }, [walletAddress]);
+
+  // Pagination Handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= paginationMeta.totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+    setCursorHistory([]);
+  };
 
   if (loading) {
     return (
@@ -557,9 +580,7 @@ export default function WalletDetailPage() {
                     className="w-16 h-16 rounded-full flex items-center justify-center shadow-sm"
                     style={{ backgroundColor: wallet.userColor }}
                   >
-                    <span className="text-2xl font-bold text-white">
-                      {wallet.userInitials}
-                    </span>
+                    <span className="text-2xl font-bold text-white">{wallet.userInitials}</span>
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900">{wallet.userName}</h2>
@@ -580,15 +601,21 @@ export default function WalletDetailPage() {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {[wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived].map((v, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6">
-                  <p className="text-sm text-gray-500">{["Total Deposit", "Total Withdrawal", "Total Received"][i]}</p>
-                  <p className="text-2xl font-semibold text-gray-900 mt-1">${v.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}</p>
-                </div>
-              ))}
+              {[wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived].map(
+                (v, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6">
+                    <p className="text-sm text-gray-500">
+                      {["Total Deposit", "Total Withdrawal", "Total Received"][i]}
+                    </p>
+                    <p className="text-2xl font-semibold text-gray-900 mt-1">
+                      ${v.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  </div>
+                )
+              )}
             </div>
 
             {/* Chart Section */}
@@ -667,7 +694,7 @@ export default function WalletDetailPage() {
               </div>
             </div>
 
-            {/* Assets Section - NEW DESIGN */}
+            {/* Assets Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               {/* Asset Category */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -705,7 +732,8 @@ export default function WalletDetailPage() {
                         ${(wallet.currentBalance / 1000).toLocaleString("en-US", {
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 1,
-                        })}K
+                        })}
+                        K
                       </span>
                       <span className="text-sm text-gray-500">Total</span>
                     </div>
@@ -751,7 +779,10 @@ export default function WalletDetailPage() {
                       const pnl = parsePnL(balance.pnl);
 
                       return (
-                        <div key={i} className="flex items-center justify-between py-4 px-3 hover:bg-gray-50 rounded-lg transition border-b border-gray-100 last:border-b-0">
+                        <div
+                          key={i}
+                          className="flex items-center justify-between py-4 px-3 hover:bg-gray-50 rounded-lg transition border-b border-gray-100 last:border-b-0"
+                        >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             {/* Currency Icon */}
                             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-gray-100">
@@ -762,7 +793,9 @@ export default function WalletDetailPage() {
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.currentTarget.style.display = "none";
-                                    e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-semibold text-gray-600">${balance.currency.name.slice(0, 2).toUpperCase()}</span>`;
+                                    e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-semibold text-gray-600">${balance.currency.name
+                                      .slice(0, 2)
+                                      .toUpperCase()}</span>`;
                                   }}
                                 />
                               ) : (
@@ -819,9 +852,25 @@ export default function WalletDetailPage() {
 
             {/* Transaction History */}
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-8">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">
-                Transaction History
-              </h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-base font-semibold text-gray-900">Transaction History</h3>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="pageSize" className="text-sm text-gray-600">
+                    Show:
+                  </label>
+                  <select
+                    id="pageSize"
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+              </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-gray-700">
@@ -834,7 +883,7 @@ export default function WalletDetailPage() {
                       <th className="py-3 px-6">Asset</th>
                       <th className="py-3 px-6">Wallet Address</th>
                       <th className="py-3 px-6">Status</th>
-                      <th></th>
+                      <th className="py-3 px-6">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -857,17 +906,15 @@ export default function WalletDetailPage() {
                       transactions.map((t, i) => (
                         <tr key={i} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-6">{t.date}</td>
-                          <td className="py-3 px-6">
-                            {t.id}
-                          </td>
+                          <td className="py-3 px-6 font-mono text-xs">{t.id}</td>
                           <td className="py-3 px-6">{t.type}</td>
-                          <td className="py-3 px-6">{t.amount}</td>
+                          <td className="py-3 px-6 font-semibold">{t.amount}</td>
                           <td className="py-3 px-6">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                               {formatAssetType(t.assetType)}
                             </span>
                           </td>
-                          <td className="py-3 px-6 text-xs">
+                          <td className="py-3 px-6 text-xs font-mono">
                             {t.address.length > 20 ? `${t.address.slice(0, 20)}...` : t.address}
                           </td>
                           <td className="py-3 px-6">
@@ -901,32 +948,36 @@ export default function WalletDetailPage() {
                     <span>No transactions to display</span>
                   ) : (
                     <>
-                      Showing {(currentPage - 1) * paginationMeta.itemsPerPage + 1} to{" "}
-                      {Math.min(currentPage * paginationMeta.itemsPerPage, paginationMeta.totalItems)} of{" "}
-                      <span className="font-semibold">{paginationMeta.totalItems}</span> transactions
+                      Showing{" "}
+                      {paginationMeta.totalItems === 0
+                        ? 0
+                        : (currentPage - 1) * paginationMeta.itemsPerPage + 1}{" "}
+                      to{" "}
+                      {Math.min(
+                        currentPage * paginationMeta.itemsPerPage,
+                        paginationMeta.totalItems
+                      )}{" "}
+                      of <span className="font-semibold">{paginationMeta.totalItems}</span>{" "}
+                      transactions
                     </>
                   )}
                 </div>
 
                 <div className="flex items-center gap-3">
+                  {/* Previous Button */}
                   <button
                     className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${currentPage === 1 || !paginationMeta.hasPrev
                       ? "text-gray-400 cursor-not-allowed bg-gray-50"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     disabled={currentPage === 1 || !paginationMeta.hasPrev}
-                    onClick={() => {
-                      if (currentPage > 1) {
-                        setCurrentPage((prev) => prev - 1);
-                      }
-                    }}
+                    onClick={() => handlePageChange(currentPage - 1)}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
+                    <ChevronLeft size={16} />
                     Previous
                   </button>
 
+                  {/* Page Info */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">
                       Page <span className="font-semibold">{currentPage}</span> of{" "}
@@ -934,25 +985,78 @@ export default function WalletDetailPage() {
                     </span>
                   </div>
 
+                  {/* Page Number Input */}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="pageInput" className="text-sm text-gray-600">
+                      Go to:
+                    </label>
+                    <input
+                      id="pageInput"
+                      type="number"
+                      min="1"
+                      max={paginationMeta.totalPages}
+                      value={currentPage}
+                      onChange={(e) => {
+                        const page = Number(e.target.value);
+                        if (page >= 1 && page <= paginationMeta.totalPages) {
+                          handlePageChange(page);
+                        }
+                      }}
+                      className="w-12 px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Next Button */}
                   <button
                     className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${!paginationMeta.hasNext
                       ? "text-gray-400 cursor-not-allowed bg-gray-50"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     disabled={!paginationMeta.hasNext}
-                    onClick={() => {
-                      if (paginationMeta.hasNext) {
-                        setCurrentPage((prev) => prev + 1);
-                      }
-                    }}
+                    onClick={() => handlePageChange(currentPage + 1)}
                   >
                     Next
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <ChevronRight size={16} />
                   </button>
                 </div>
               </div>
+
+              {/* Pagination Info */}
+              {paginationMeta.totalPages > 1 && (
+                <div className="mt-4 flex flex-wrap gap-2 items-center justify-center">
+                  {Array.from({ length: Math.min(paginationMeta.totalPages, 5) }, (_, i) => {
+                    const pageNum =
+                      currentPage <= 3 ? i + 1 : currentPage - 2 + i;
+                    if (pageNum > paginationMeta.totalPages) return null;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${currentPage === pageNum
+                          ? "bg-blue-600 text-white"
+                          : "border border-gray-200 text-gray-700 hover:bg-gray-50"
+                          }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  {paginationMeta.totalPages > 5 && (
+                    <>
+                      <span className="text-gray-400">...</span>
+                      <button
+                        onClick={() => handlePageChange(paginationMeta.totalPages)}
+                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${currentPage === paginationMeta.totalPages
+                          ? "bg-blue-600 text-white"
+                          : "border border-gray-200 text-gray-700 hover:bg-gray-50"
+                          }`}
+                      >
+                        {paginationMeta.totalPages}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </section>
           </main>
         </div>
