@@ -52,8 +52,12 @@ interface WalletDetail {
   totalWithdrawal: number;
   totalReceived: number;
   chartData: { date: string; balance: number }[];
-  pnl?: number;
-  pnlPercent?: number;
+  assets: WalletAsset[];
+}
+
+interface ChartDataPoint {
+  date: string;
+  balance: number;
 }
 
 // --- Dynamic Color Generation ---
@@ -89,15 +93,10 @@ function getUserColor(userId: string | null): string {
 }
 
 // Helper function to generate user info with full name and initials
-function generateUserInfo(userData: {
-  first_name: string | null;
-  last_name: string | null;
-  username: string;
-}) {
-  const fullName =
-    [userData.first_name, userData.last_name].filter(Boolean).join(" ") ||
-    userData.username ||
-    "No user info";
+function generateUserInfo(userData: { first_name: string | null; last_name: string | null; username: string }) {
+  const fullName = [userData.first_name, userData.last_name]
+    .filter(Boolean)
+    .join(" ") || userData.username || "No user info";
 
   const initials = fullName
     .split(" ")
@@ -112,6 +111,75 @@ function generateUserInfo(userData: {
 function formatAssetType(assetType: string): string {
   if (!assetType) return "-";
   return assetType.charAt(0).toUpperCase() + assetType.slice(1);
+}
+
+// --- Chart Data Formatting Functions ---
+
+/**
+ * Format chart date intelligently based on time difference
+ * Shows time (HH:MM:SS) for data points on same day
+ * Shows date for data points on different days
+ */
+function formatChartDate(dateString: string, index: number, allDates: string[]): string {
+  const date = new Date(dateString);
+  const formattedDate = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const formattedTime = date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  // Check if this is the first point or same day as previous
+  if (index === 0) {
+    return formattedTime;
+  }
+
+  const prevDate = new Date(allDates[index - 1]);
+  const isSameDay = date.toDateString() === prevDate.toDateString();
+
+  return isSameDay ? formattedTime : formattedDate;
+}
+
+/**
+ * Sample chart data to reduce overcrowding for large datasets
+ * Intelligently reduces data points while maintaining data integrity
+ */
+function sampleChartData(data: ChartDataPoint[], maxPoints: number = 12): ChartDataPoint[] {
+  if (data.length <= maxPoints) {
+    return data;
+  }
+
+  const sampleRate = Math.ceil(data.length / maxPoints);
+  const sampled: ChartDataPoint[] = [];
+
+  // Always include first point
+  sampled.push(data[0]);
+
+  // Sample intermediate points
+  for (let i = sampleRate; i < data.length - 1; i += sampleRate) {
+    sampled.push(data[i]);
+  }
+
+  // Always include last point
+  if (data[data.length - 1] !== sampled[sampled.length - 1]) {
+    sampled.push(data[data.length - 1]);
+  }
+
+  return sampled;
+}
+
+/**
+ * Calculate optimal X-axis interval for chart
+ */
+function getOptimalInterval(dataLength: number): number {
+  if (dataLength <= 12) return 0;
+  if (dataLength <= 24) return 1;
+  if (dataLength <= 50) return 2;
+  return 4;
 }
 
 // Skeleton loaders
@@ -174,10 +242,7 @@ function AssetSectionSkeleton() {
         <div className="h-6 bg-gray-200 rounded w-32 mb-6"></div>
         <div className="space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0"
-            >
+            <div key={i} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
               <div className="flex items-center gap-3 flex-1">
                 <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
                 <div className="flex-1">
@@ -203,10 +268,7 @@ function TransactionTableSkeleton() {
       <div className="h-6 bg-gray-200 rounded w-40 mb-6"></div>
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex gap-4 py-4 border-b border-gray-100 last:border-b-0"
-          >
+          <div key={i} className="flex gap-4 py-4 border-b border-gray-100 last:border-b-0">
             <div className="h-4 bg-gray-200 rounded w-24"></div>
             <div className="h-4 bg-gray-200 rounded w-28"></div>
             <div className="h-4 bg-gray-200 rounded w-20"></div>
@@ -235,7 +297,7 @@ export default function WalletDetailPage() {
   // --- Pagination State & Logic ---
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const totalPages = Math.ceil(transactions.length / itemsPerPage) || 1;
+  const totalPages = Math.ceil(transactions.length / itemsPerPage);
   const paginatedTransactions = transactions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -247,31 +309,19 @@ export default function WalletDetailPage() {
 
     const fetchWallet = async () => {
       try {
-        const res = await axiosClient.get(
-          `${API_URL}/wallets/dashboard/${walletAddress}`
-        );
+        const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
         const apiData = res.data?.data;
 
-        // Calculate total balance from the 'balances' array
-        const totalAssetsValue = apiData.balances.reduce(
-          (sum: number, asset: any) => sum + asset.total_value,
-          0
-        );
+        // FIX: Calculate total balance from the 'balances' array
+        const totalAssetsValue = apiData.balances.reduce((sum: number, asset: any) => sum + asset.total_value, 0);
 
-        const assets: WalletAsset[] = apiData.balances.map(
-          (b: any, i: number) => ({
-            name: b.currency.name,
-            amount: b.assets.toFixed(4),
-            // Prevent division by zero
-            percentage:
-              totalAssetsValue > 0
-                ? parseFloat(
-                  ((b.total_value / totalAssetsValue) * 100).toFixed(2)
-                )
-                : 0,
-            color: getAssetColor(i),
-          })
-        );
+        const assets = apiData.balances.map((b: any, i: number) => ({
+          name: b.currency.name,
+          amount: b.assets.toFixed(4),
+          // FIX: Prevent division by zero
+          percentage: totalAssetsValue > 0 ? parseFloat(((b.total_value / totalAssetsValue) * 100).toFixed(2)) : 0,
+          color: getAssetColor(i),
+        }));
 
         const { fullName, initials } = generateUserInfo(apiData.user);
         const userId = apiData.user.id;
@@ -284,7 +334,7 @@ export default function WalletDetailPage() {
           walletAddress: apiData.wallet_address,
           userId,
           userColor,
-          currentBalance: totalAssetsValue,
+          currentBalance: totalAssetsValue, // FIX: Use calculated total
           totalDeposit: apiData.total_deposit,
           totalWithdrawal: apiData.total_withdrawn,
           totalReceived: apiData.total_received,
@@ -308,17 +358,15 @@ export default function WalletDetailPage() {
 
     const fetchTransactions = async () => {
       try {
-        const res = await axiosClient.get(
-          `${API_URL}/transaction/dashboard/${walletAddress}`
-        );
+        const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`);
         const data = res.data?.data?.transactions || [];
 
-        const formatted: Transaction[] = data.map((tx: any) => ({
+        const formatted = data.map((tx: any) => ({
           date: new Date(tx.date_created).toLocaleString(),
           id: tx.hash ?? "-",
           type: tx.transaction_type?.name ?? "-",
           amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
-          // Use asset_type from currency_data
+          // FIX: Use asset_type from currency_data
           asset: tx.currency_data?.asset_type ?? "-",
           assetType: tx.currency_data?.asset_type ?? "-",
           address: tx.from_address || tx.to_address || "-",
@@ -347,33 +395,28 @@ export default function WalletDetailPage() {
           `${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`
         );
 
-        const labels: string[] = res.data?.labels ?? [];
-        const values: number[] = res.data?.data?.[0]?.values ?? [];
+        if (res.data.labels && res.data.data[0]?.values) {
+          const rawChartData = res.data.labels.map((label: string, i: number) => ({
+            date: label,
+            balance: res.data.data[0].values[i],
+          }));
 
-        const length = Math.min(labels.length, values.length);
+          // Sample data to prevent overcrowding
+          const sampledData = sampleChartData(rawChartData);
 
-        const chartData =
-          length > 0
-            ? Array.from({ length }).map((_, i) => ({
-              // full date + time so you see intra-day changes
-              date: new Date(labels[i]).toLocaleString(),
-              balance: values[i],
-            }))
-            : [];
+          // Format dates with intelligent formatting
+          const chartData = sampledData.map((point, index) => ({
+            date: formatChartDate(point.date, index, sampledData.map(p => p.date)),
+            balance: point.balance,
+          }));
 
-        setWallet((prev) =>
-          prev
-            ? {
-              ...prev,
-              chartData,
-              pnl: res.data?.pnl,
-              pnlPercent: res.data?.pnl_percent,
-            }
-            : null
-        );
+          setWallet((prev) => (prev ? { ...prev, chartData } : null));
+        } else {
+          // Handle case with no chart data
+          setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
+        }
       } catch (err) {
         console.error("Error fetching chart data:", err);
-        setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
       }
     };
 
@@ -440,12 +483,8 @@ export default function WalletDetailPage() {
                       />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-1">
-                    Wallet Not Found
-                  </h3>
-                  <p className="text-gray-500">
-                    The wallet you are looking for does not exist.
-                  </p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-1">Wallet Not Found</h3>
+                  <p className="text-gray-500">The wallet you are looking for does not exist.</p>
                 </div>
               </div>
             </main>
@@ -454,13 +493,6 @@ export default function WalletDetailPage() {
       </div>
     );
   }
-
-  const pnlDisplay =
-    wallet.pnl !== undefined ? wallet.pnl.toFixed(2) : "0.00";
-  const pnlPercentDisplay =
-    wallet.pnlPercent !== undefined
-      ? (wallet.pnlPercent * 100).toFixed(4)
-      : "0.0000";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -478,9 +510,7 @@ export default function WalletDetailPage() {
                     <ArrowLeft size={18} className="text-gray-700" />
                   </button>
                 </Link>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Wallet Details
-                </h1>
+                <h1 className="text-xl font-semibold text-gray-900">Wallet Details</h1>
               </div>
             </div>
 
@@ -497,50 +527,33 @@ export default function WalletDetailPage() {
                     </span>
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">
-                      {wallet.userName}
-                    </h2>
-                    <p className="text-gray-500">
-                      Wallet: {wallet.walletAddress}
-                    </p>
+                    <h2 className="text-xl font-semibold text-gray-900">{wallet.userName}</h2>
+                    <p className="text-gray-500">Wallet: {wallet.walletAddress}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-gray-900">
                     ${wallet.currentBalance.toLocaleString()}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    Current Balance
-                  </div>
+                  <div className="text-sm text-gray-500">Current Balance</div>
                 </div>
               </div>
             </div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {[wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived].map(
-                (v, i) => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-2xl border border-gray-100 p-6"
-                  >
-                    <p className="text-sm text-gray-500">
-                      {["Total Deposit", "Total Withdrawal", "Total Received"][i]}
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900 mt-1">
-                      ${v.toLocaleString()}
-                    </p>
-                  </div>
-                )
-              )}
+              {[wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived].map((v, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6">
+                  <p className="text-sm text-gray-500">{["Total Deposit", "Total Withdrawal", "Total Received"][i]}</p>
+                  <p className="text-2xl font-semibold text-gray-900 mt-1">${v.toLocaleString()}</p>
+                </div>
+              ))}
             </div>
 
             {/* Chart Section */}
             <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-gray-900">
-                  Statistics
-                </h3>
+                <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
 
                 <div className="flex items-center gap-4">
                   <div className="flex items-center bg-gray-50 rounded-full border border-gray-200">
@@ -577,16 +590,12 @@ export default function WalletDetailPage() {
 
                   <div className="flex items-center gap-6">
                     <div className="flex flex-col text-right">
-                      <p className="text-sm text-gray-500">PnL</p>
-                      <p className="text-base font-semibold text-gray-900">
-                        ${pnlDisplay}
-                      </p>
+                      <p className="text-sm text-gray-500">Avg. Deposit</p>
+                      <p className="text-base font-semibold text-gray-900">$212,142.12</p>
                     </div>
                     <div className="flex flex-col text-right">
-                      <p className="text-sm text-gray-500">PnL %</p>
-                      <p className="text-base font-semibold text-gray-900">
-                        {pnlPercentDisplay}%
-                      </p>
+                      <p className="text-sm text-gray-500">Avg. Interest</p>
+                      <p className="text-base font-semibold text-gray-900">$30,321.23</p>
                     </div>
                   </div>
                 </div>
@@ -597,23 +606,43 @@ export default function WalletDetailPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={wallet.chartData}>
                       <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                      <XAxis dataKey="date" stroke="#9CA3AF" />
+                      <XAxis
+                        dataKey="date"
+                        stroke="#9CA3AF"
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        tick={{ fontSize: 12 }}
+                        interval={getOptimalInterval(wallet.chartData.length)}
+                      />
                       <YAxis stroke="#9CA3AF" />
-                      <Tooltip />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#FFFFFF",
+                          border: "1px solid #E5E7EB",
+                          borderRadius: "8px",
+                        }}
+                        formatter={(value) => [
+                          `$${Number(value).toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}`,
+                          "Balance",
+                        ]}
+                      />
                       <Line
                         type="monotone"
                         dataKey="balance"
                         stroke="#2563EB"
                         strokeWidth={2.5}
                         dot={false}
+                        isAnimationActive={true}
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500">
-                      No statistical data available.
-                    </p>
+                    <p className="text-gray-500">No statistical data available.</p>
                   </div>
                 )}
               </div>
@@ -624,9 +653,7 @@ export default function WalletDetailPage() {
               {/* Pie Chart */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-base font-semibold text-gray-900">
-                    Asset Category
-                  </h3>
+                  <h3 className="text-base font-semibold text-gray-900">Asset Category</h3>
                   <button className="text-gray-400 hover:text-gray-600">
                     <MoreHorizontal size={18} />
                   </button>
@@ -647,7 +674,10 @@ export default function WalletDetailPage() {
                           dataKey="value"
                         >
                           {wallet.assets.map((a, i) => (
-                            <Cell key={i} fill={a.color} />
+                            <Cell
+                              key={i}
+                              fill={a.color}
+                            />
                           ))}
                         </Pie>
                       </PieChart>
@@ -664,13 +694,11 @@ export default function WalletDetailPage() {
                     {wallet.assets.map((a, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <span
-                          className="w-2.5 h-2.5 rounded-full"
+                          className={`w-2.5 h-2.5 rounded-full`}
                           style={{ backgroundColor: a.color }}
                         ></span>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {a.name}
-                          </p>
+                          <p className="text-sm font-medium text-gray-900">{a.name}</p>
                           <p className="text-xs text-gray-500">
                             {a.percentage}% - {a.amount}
                           </p>
@@ -684,9 +712,7 @@ export default function WalletDetailPage() {
               {/* Asset List */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-base font-semibold text-gray-900">
-                    Asset List
-                  </h3>
+                  <h3 className="text-base font-semibold text-gray-900">Asset List</h3>
                   <button className="text-gray-400 hover:text-gray-600">
                     <MoreHorizontal size={18} />
                   </button>
@@ -694,9 +720,7 @@ export default function WalletDetailPage() {
 
                 <div className="divide-y divide-gray-100">
                   {wallet.assets.length === 0 ? (
-                    <p className="text-center py-6 text-gray-500">
-                      No assets found
-                    </p>
+                    <p className="text-center py-6 text-gray-500">No assets found</p>
                   ) : (
                     wallet.assets.map((asset, i) => (
                       <div
@@ -755,10 +779,7 @@ export default function WalletDetailPage() {
                   <tbody>
                     {loadingTx ? (
                       <tr>
-                        <td
-                          colSpan={8}
-                          className="text-center py-6 text-gray-500"
-                        >
+                        <td colSpan={8} className="text-center py-6 text-gray-500">
                           <div className="flex items-center justify-center gap-2">
                             <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
                             Loading transactions...
@@ -767,10 +788,7 @@ export default function WalletDetailPage() {
                       </tr>
                     ) : transactions.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan={8}
-                          className="text-center py-6 text-gray-500"
-                        >
+                        <td colSpan={8} className="text-center py-6 text-gray-500">
                           No transactions found
                         </td>
                       </tr>
@@ -779,9 +797,7 @@ export default function WalletDetailPage() {
                         <tr key={i} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-6">{t.date}</td>
                           <td className="py-3 px-6 text-blue-600 font-mono text-xs">
-                            {t.id.length > 20
-                              ? `${t.id.slice(0, 20)}...`
-                              : t.id}
+                            {t.id.length > 20 ? `${t.id.slice(0, 20)}...` : t.id}
                           </td>
                           <td className="py-3 px-6">{t.type}</td>
                           <td className="py-3 px-6">{t.amount}</td>
@@ -791,9 +807,7 @@ export default function WalletDetailPage() {
                             </span>
                           </td>
                           <td className="py-3 px-6 text-xs">
-                            {t.address.length > 20
-                              ? `${t.address.slice(0, 20)}...`
-                              : t.address}
+                            {t.address.length > 20 ? `${t.address.slice(0, 20)}...` : t.address}
                           </td>
                           <td className="py-3 px-6">
                             <span
@@ -827,15 +841,13 @@ export default function WalletDetailPage() {
                     : "text-gray-600 hover:bg-gray-50"
                     }`}
                   disabled={currentPage === 1}
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 >
                   ← Previous
                 </button>
 
                 <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages }).map((_, i) => (
+                  {Array.from({ length: totalPages || 1 }).map((_, i) => (
                     <button
                       key={i}
                       className={`w-8 h-8 rounded-lg text-sm font-medium transition ${i + 1 === currentPage
@@ -856,9 +868,7 @@ export default function WalletDetailPage() {
                     }`}
                   disabled={currentPage === totalPages}
                   onClick={() =>
-                    setCurrentPage((prev) =>
-                      Math.min(prev + 1, totalPages)
-                    )
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                   }
                 >
                   Next →
