@@ -392,13 +392,27 @@ export default function WalletDetailPage() {
         const itemsPerPage = paginatedInfo.limit || pageSize;
         const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
+        // ✅ FIX: Properly determine hasPrev based on currentPage
+        const hasPrev = currentPage > 1;
+        const hasNext = paginatedInfo.has_next || false;
+
+        console.log("Pagination Debug:", {
+          currentPage,
+          totalPages,
+          hasPrev,
+          hasNext,
+          totalItems,
+          itemsPerPage,
+          paginatedInfo,
+        });
+
         setPaginationMeta({
           totalItems,
           totalPages,
           currentPage,
           itemsPerPage,
-          hasNext: paginatedInfo.has_next || false,
-          hasPrev: paginatedInfo.has_prev || false,
+          hasNext,
+          hasPrev,
         });
 
         // Extract transactions array
@@ -458,6 +472,8 @@ export default function WalletDetailPage() {
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= paginationMeta.totalPages) {
       setCurrentPage(newPage);
+      // Scroll to top of transactions table
+      document.querySelector("table")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
@@ -951,11 +967,11 @@ export default function WalletDetailPage() {
                 <div className="flex items-center gap-3">
                   {/* Previous Button */}
                   <button
-                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${currentPage === 1 || !paginationMeta.hasPrev
+                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${currentPage <= 1
                       ? "text-gray-400 cursor-not-allowed bg-gray-50"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`}
-                    disabled={currentPage === 1 || !paginationMeta.hasPrev}
+                    disabled={currentPage <= 1}
                     onClick={() => handlePageChange(currentPage - 1)}
                   >
                     <ChevronLeft size={16} />
@@ -1006,7 +1022,7 @@ export default function WalletDetailPage() {
                 </div>
               </div>
 
-              {/* Pagination Info */}
+              {/* Pagination Info - Page Number Buttons */}
               {paginationMeta.totalPages > 1 && (
                 <div className="mt-4 flex flex-wrap gap-2 items-center justify-center">
                   {Array.from({ length: Math.min(paginationMeta.totalPages, 5) }, (_, i) => {
