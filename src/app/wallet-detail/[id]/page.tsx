@@ -102,10 +102,6 @@ const COLORS = [
   "#a855f7", // purple-500
   "#ef4444", // red-500
   "#f59e0b", // amber-500
-  "#06b6d4", // cyan-500
-  "#ec4899", // pink-500
-  "#8b5cf6", // violet-500
-  "#14b8a6", // teal-500
 ];
 
 const ASSET_TYPE_COLORS: { [key: string]: string } = {
@@ -309,7 +305,7 @@ export default function WalletDetailPage() {
         // Calculate total balance from the 'balances' array
         const totalAssetsValue = apiData.balances.reduce((sum: number, balance: Balance) => sum + balance.total_value, 0);
 
-        // Group balances by asset type for categories
+        // Group balances by asset type
         const groupedByType: { [key: string]: Balance[] } = {};
         apiData.balances.forEach((balance: Balance) => {
           const assetType = balance.currency.asset_type || "unknown";
@@ -319,7 +315,7 @@ export default function WalletDetailPage() {
           groupedByType[assetType].push(balance);
         });
 
-        // Create asset categories (for the legend)
+        // Create asset categories
         const assetCategories: AssetCategory[] = [];
         Object.entries(groupedByType).forEach(([type, balances]) => {
           const categoryTotal = balances.reduce((sum, b) => sum + b.total_value, 0);
@@ -671,9 +667,9 @@ export default function WalletDetailPage() {
               </div>
             </div>
 
-            {/* Assets Section - NEW DESIGN WITH PER-ITEM PIE CHART */}
+            {/* Assets Section - NEW DESIGN */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Asset Category - Pie Chart Per Item */}
+              {/* Asset Category */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-start justify-between mb-6">
                   <h3 className="text-base font-semibold text-gray-900">Asset Category</h3>
@@ -683,28 +679,23 @@ export default function WalletDetailPage() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  {/* Pie Chart - Shows each asset as individual item */}
+                  {/* Pie Chart */}
                   <div className="relative w-40 h-40">
-                    {wallet.balances.length > 0 ? (
+                    {wallet.assetCategories.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={wallet.balances.map((balance, i) => {
-                              const percentage = wallet.currentBalance > 0
-                                ? parseFloat(((balance.total_value / wallet.currentBalance) * 100).toFixed(2))
-                                : 0;
-                              return {
-                                name: balance.currency.name,
-                                value: percentage,
-                              };
-                            })}
+                            data={wallet.assetCategories.map((cat) => ({
+                              name: cat.label,
+                              value: cat.percentage,
+                            }))}
                             innerRadius={60}
                             outerRadius={80}
                             paddingAngle={2}
                             dataKey="value"
                           >
-                            {wallet.balances.map((_, i) => (
-                              <Cell key={i} fill={getAssetColor(i)} />
+                            {wallet.assetCategories.map((cat, i) => (
+                              <Cell key={i} fill={cat.color} />
                             ))}
                           </Pie>
                         </PieChart>
@@ -721,17 +712,17 @@ export default function WalletDetailPage() {
                     </div>
                   </div>
 
-                  {/* Legend - Shows each asset category with percentage */}
-                  <div className="space-y-3 ml-8 flex-1 max-h-72 overflow-y-auto">
+                  {/* Legend */}
+                  <div className="space-y-4 ml-8 flex-1">
                     {wallet.assetCategories.map((cat, i) => (
                       <div key={i} className="flex items-center gap-3">
                         <span
                           className={`w-3 h-3 rounded-full flex-shrink-0`}
                           style={{ backgroundColor: cat.color }}
                         ></span>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">{cat.label}</p>
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-xs text-gray-500">
                             {cat.percentage}% • ${cat.totalValue.toLocaleString("en-US", {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
@@ -759,9 +750,6 @@ export default function WalletDetailPage() {
                   ) : (
                     wallet.balances.map((balance, i) => {
                       const pnl = parsePnL(balance.pnl);
-                      const percentage = wallet.currentBalance > 0
-                        ? parseFloat(((balance.total_value / wallet.currentBalance) * 100).toFixed(2))
-                        : 0;
 
                       return (
                         <div key={i} className="flex items-center justify-between py-4 px-3 hover:bg-gray-50 rounded-lg transition border-b border-gray-100 last:border-b-0">
