@@ -82,7 +82,7 @@ interface WalletDetail {
   assetCategories: AssetCategory[];
 }
 
-// --- MODIFIED: PaginationMeta type simplified for page-number pagination ---
+// --- MODIFIED: Reverted to PaginationMeta that supports cursors ---
 interface PaginationMeta {
   totalItems: number;
   totalPages: number;
@@ -90,6 +90,7 @@ interface PaginationMeta {
   itemsPerPage: number;
   hasNext: boolean;
   hasPrev: boolean;
+  nextCursor: string | null;
 }
 
 // Colors
@@ -292,10 +293,11 @@ export default function WalletDetailPage() {
     itemsPerPage: 10,
     hasNext: false,
     hasPrev: false,
+    nextCursor: null,
   });
 
-  // --- REMOVED: cursorHistory state is no longer needed for page/take pagination ---
-  // const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+  // --- RE-INTRODUCED: cursorHistory state to manage pagination ---
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
 
 
   // ✅ Fetch Wallet Details
@@ -369,37 +371,48 @@ export default function WalletDetailPage() {
     fetchWallet();
   }, [walletAddress]);
 
-  // --- MODIFIED: Switched to page/take based pagination ---
+  // --- MODIFIED: Reverted to Cursor-Based Pagination Logic ---
   useEffect(() => {
     if (!walletAddress) return;
 
     const fetchTransactions = async () => {
       try {
         setLoadingTx(true);
-        // Use page and take for query parameters
-        const params = {
-          page: currentPage,
-          take: pageSize,
+        const params: any = {
+          limit: pageSize,
         };
+
+        // Use cursor for page > 1
+        if (currentPage > 1 && cursorHistory.length > 0 && cursorHistory[currentPage - 2]) {
+          params.cursor = cursorHistory[currentPage - 2];
+        }
 
         const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`, {
           params,
         });
 
-        // Assuming the API response structure now provides pagination details directly
         const responseData = res.data?.data;
-        // The exact path to paginatedInfo might need adjustment based on your final API response structure.
-        // For example, it could be `responseData` or `responseData.paginated`
-        const paginatedInfo = responseData?.paginated || responseData;
+        const paginatedInfo = responseData?.paginated; // Correctly access the 'paginated' object
+
+        // Calculate total pages from number_records
+        const totalRecords = paginatedInfo.number_records || 0;
+        const limit = paginatedInfo.limit || pageSize;
+        const totalPages = Math.ceil(totalRecords / limit);
 
         setPaginationMeta({
-          totalItems: paginatedInfo.number_records || 0,
-          totalPages: paginatedInfo.pages || 1, // Expecting 'pages' from API
-          currentPage: paginatedInfo.page || currentPage, // Expecting 'page' from API
-          itemsPerPage: paginatedInfo.take || pageSize, // Expecting 'take' from API
+          totalItems: totalRecords,
+          totalPages,
+          currentPage,
+          itemsPerPage: limit,
           hasNext: paginatedInfo.has_next || false,
           hasPrev: paginatedInfo.has_prev || false,
+          nextCursor: paginatedInfo.next_cursor || null,
         });
+
+        // Store the next cursor for future "Next" page clicks
+        if (paginatedInfo.next_cursor && !cursorHistory.includes(paginatedInfo.next_cursor)) {
+          setCursorHistory((prev) => [...prev.slice(0, currentPage - 1), paginatedInfo.next_cursor]);
+        }
 
         const transactions_data = responseData?.transactions || [];
 
@@ -463,7 +476,8 @@ export default function WalletDetailPage() {
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
     setCurrentPage(1);
-    // --- REMOVED: No longer need to reset cursor history ---
+    // Reset cursor history when page size changes
+    setCursorHistory([]);
   };
 
   if (loading) {
