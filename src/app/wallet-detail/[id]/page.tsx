@@ -82,7 +82,7 @@ interface WalletDetail {
   assetCategories: AssetCategory[];
 }
 
-// --- MODIFIED: Reverted to PaginationMeta that supports cursors ---
+// Pagination metadata from API
 interface PaginationMeta {
   totalItems: number;
   totalPages: number;
@@ -90,7 +90,6 @@ interface PaginationMeta {
   itemsPerPage: number;
   hasNext: boolean;
   hasPrev: boolean;
-  nextCursor: string | null;
 }
 
 // Colors
@@ -293,12 +292,7 @@ export default function WalletDetailPage() {
     itemsPerPage: 10,
     hasNext: false,
     hasPrev: false,
-    nextCursor: null,
   });
-
-  // --- RE-INTRODUCED: cursorHistory state to manage pagination ---
-  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
-
 
   // ✅ Fetch Wallet Details
   useEffect(() => {
@@ -371,49 +365,43 @@ export default function WalletDetailPage() {
     fetchWallet();
   }, [walletAddress]);
 
-  // --- MODIFIED: Reverted to Cursor-Based Pagination Logic ---
+  // ✅ Fetch Transactions with Page-Based Pagination
   useEffect(() => {
     if (!walletAddress) return;
 
     const fetchTransactions = async () => {
       try {
         setLoadingTx(true);
-        const params: any = {
-          limit: pageSize,
+        // Use page and take for query parameters
+        const params = {
+          page: currentPage,
+          take: pageSize,
         };
-
-        // Use cursor for page > 1
-        if (currentPage > 1 && cursorHistory.length > 0 && cursorHistory[currentPage - 2]) {
-          params.cursor = cursorHistory[currentPage - 2];
-        }
 
         const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`, {
           params,
         });
 
         const responseData = res.data?.data;
-        const paginatedInfo = responseData?.paginated; // Correctly access the 'paginated' object
 
-        // Calculate total pages from number_records
-        const totalRecords = paginatedInfo.number_records || 0;
-        const limit = paginatedInfo.limit || pageSize;
-        const totalPages = Math.ceil(totalRecords / limit);
+        // Extract pagination info from the "paginated" object
+        const paginatedInfo = responseData?.paginated || {};
+
+        // Calculate total pages from number_records and limit
+        const totalItems = paginatedInfo.number_records || 0;
+        const itemsPerPage = paginatedInfo.limit || pageSize;
+        const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
         setPaginationMeta({
-          totalItems: totalRecords,
+          totalItems,
           totalPages,
           currentPage,
-          itemsPerPage: limit,
+          itemsPerPage,
           hasNext: paginatedInfo.has_next || false,
           hasPrev: paginatedInfo.has_prev || false,
-          nextCursor: paginatedInfo.next_cursor || null,
         });
 
-        // Store the next cursor for future "Next" page clicks
-        if (paginatedInfo.next_cursor && !cursorHistory.includes(paginatedInfo.next_cursor)) {
-          setCursorHistory((prev) => [...prev.slice(0, currentPage - 1), paginatedInfo.next_cursor]);
-        }
-
+        // Extract transactions array
         const transactions_data = responseData?.transactions || [];
 
         const formatted = transactions_data.map((tx: any) => ({
@@ -476,8 +464,6 @@ export default function WalletDetailPage() {
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
     setCurrentPage(1);
-    // Reset cursor history when page size changes
-    setCursorHistory([]);
   };
 
   if (loading) {
