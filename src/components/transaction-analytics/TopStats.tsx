@@ -83,7 +83,7 @@ export default function TopStats({ variant }: Props) {
 
   // 🧮 Tính toán Net flow
   const net =
-    (deposit?.amount || 0) - (withdraw?.amount || 0) - (redeem?.amount || 0);
+    (deposit?.assets || 0) - (withdraw?.assets || 0) - (redeem?.assets || 0);
 
   const format = (v: number) =>
     v.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -104,8 +104,8 @@ export default function TopStats({ variant }: Props) {
       </div>
 
       <div className="divide-y divide-gray-100">
-        <Row label={labels.rows[0]} value={format(deposit?.amount || 0)} />
-        <Row label={labels.rows[1]} value={format(withdraw?.amount || 0)} />
+        <Row label={labels.rows[0]} value={format(deposit?.assets || 0)} />
+        <Row label={labels.rows[1]} value={format(withdraw?.assets || 0)} />
         <Row label={labels.rows[2]} value={format(net)} />
       </div>
     </div>
