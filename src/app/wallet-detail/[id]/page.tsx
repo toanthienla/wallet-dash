@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 
 import AppSidebar from "@/layout/AppSidebar";
 import AppHeader from "@/layout/AppHeader";
-import { ArrowLeft, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, TrendingUp, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -20,11 +20,38 @@ import {
 } from "recharts";
 import { API_URL } from "@/utils/constants";
 import axiosClient from "@/utils/axiosClient";
+import Image from "next/image";
 
 // Types
-interface WalletAsset {
-  name: string;
-  amount: string;
+interface Balance {
+  id: string;
+  master_wallet_id: string;
+  total_value: number;
+  current_value: number;
+  currency_slug: string;
+  currency: {
+    name: string;
+    id: number;
+    slug: string;
+    full_name: string;
+    icon: string;
+    link: string;
+    usd_rate: number;
+    decimals: number;
+    is_native_token: boolean;
+    is_crypto_token: boolean;
+    is_fiat_token: boolean;
+    asset_type: string;
+  };
+  usd_rate: number;
+  pnl: string;
+  assets: number;
+}
+
+interface AssetCategory {
+  type: string;
+  label: string;
+  totalValue: number;
   percentage: number;
   color: string;
 }
@@ -52,7 +79,8 @@ interface WalletDetail {
   totalWithdrawal: number;
   totalReceived: number;
   chartData: { date: string; balance: number }[];
-  assets: WalletAsset[];
+  balances: Balance[];
+  assetCategories: AssetCategory[];
 }
 
 interface PaginationMeta {
@@ -76,6 +104,18 @@ const COLORS = [
   "#f59e0b", // amber-500
 ];
 
+const ASSET_TYPE_COLORS: { [key: string]: string } = {
+  fiat: "#3b82f6", // blue
+  crypto: "#a855f7", // purple
+  native: "#10b981", // green
+};
+
+const ASSET_TYPE_LABELS: { [key: string]: string } = {
+  fiat: "Fiat",
+  crypto: "Crypto",
+  native: "Native",
+};
+
 function getAssetColor(index: number) {
   return COLORS[index % COLORS.length];
 }
@@ -85,20 +125,19 @@ function hashCode(str: string): number {
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
   return Math.abs(hash);
 }
 
 function getUserColor(userId: string | null): string {
   if (!userId) {
-    return getAssetColor(0); // Default green for no user
+    return getAssetColor(0);
   }
   const hash = hashCode(userId);
   return getAssetColor(hash);
 }
 
-// Helper function to generate user info with full name and initials
 function generateUserInfo(userData: { first_name: string | null; last_name: string | null; username: string }) {
   const fullName = [userData.first_name, userData.last_name]
     .filter(Boolean)
@@ -113,10 +152,17 @@ function generateUserInfo(userData: { first_name: string | null; last_name: stri
   return { fullName, initials };
 }
 
-// Helper function to format asset type for display
 function formatAssetType(assetType: string): string {
   if (!assetType) return "-";
   return assetType.charAt(0).toUpperCase() + assetType.slice(1);
+}
+
+function parsePnL(pnlStr: string): { value: number; isPositive: boolean } {
+  const value = parseFloat(pnlStr);
+  return {
+    value: Math.abs(value),
+    isPositive: value >= 0,
+  };
 }
 
 // Skeleton loaders
@@ -181,7 +227,7 @@ function AssetSectionSkeleton() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
               <div className="flex items-center gap-3 flex-1">
-                <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
                 <div className="flex-1">
                   <div className="h-4 bg-gray-200 rounded w-20 mb-1"></div>
                   <div className="h-3 bg-gray-200 rounded w-24"></div>
@@ -256,17 +302,35 @@ export default function WalletDetailPage() {
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
         const apiData = res.data?.data;
 
-        // FIX: Calculate total balance from the 'balances' array
-        const totalAssetsValue = apiData.balances.reduce((sum: number, asset: any) => sum + asset.total_value, 0);
+        // Calculate total balance from the 'balances' array
+        const totalAssetsValue = apiData.balances.reduce((sum: number, balance: Balance) => sum + balance.total_value, 0);
 
-        const assets = apiData.balances.map((b: any, i: number) => ({
-          name: b.currency.name,
-          amount: b.assets.toFixed(4),
-          // FIX: Prevent division by zero
-          percentage: totalAssetsValue > 0 ? parseFloat(((b.total_value / totalAssetsValue) * 100).toFixed(2)) : 0,
-          color: getAssetColor(i),
-        }));
+        // Group balances by asset type
+        const groupedByType: { [key: string]: Balance[] } = {};
+        apiData.balances.forEach((balance: Balance) => {
+          const assetType = balance.currency.asset_type || "unknown";
+          if (!groupedByType[assetType]) {
+            groupedByType[assetType] = [];
+          }
+          groupedByType[assetType].push(balance);
+        });
 
+        // Create asset categories
+        const assetCategories: AssetCategory[] = [];
+        Object.entries(groupedByType).forEach(([type, balances]) => {
+          const categoryTotal = balances.reduce((sum, b) => sum + b.total_value, 0);
+          const percentage = totalAssetsValue > 0 ? parseFloat(((categoryTotal / totalAssetsValue) * 100).toFixed(2)) : 0;
+
+          assetCategories.push({
+            type,
+            label: ASSET_TYPE_LABELS[type] || type,
+            totalValue: categoryTotal,
+            percentage,
+            color: ASSET_TYPE_COLORS[type] || getAssetColor(Object.keys(groupedByType).indexOf(type)),
+          });
+        });
+
+        const balances = apiData.balances;
         const { fullName, initials } = generateUserInfo(apiData.user);
         const userId = apiData.user.id;
         const userColor = getUserColor(userId);
@@ -278,11 +342,12 @@ export default function WalletDetailPage() {
           walletAddress: apiData.wallet_address,
           userId,
           userColor,
-          currentBalance: totalAssetsValue, // FIX: Use calculated total
+          currentBalance: totalAssetsValue,
           totalDeposit: apiData.total_deposit,
           totalWithdrawal: apiData.total_withdrawn,
           totalReceived: apiData.total_received,
-          assets,
+          balances,
+          assetCategories,
           chartData: [],
         });
       } catch (error) {
@@ -345,7 +410,7 @@ export default function WalletDetailPage() {
 
         const formatted = transactions_data.map((tx: any) => ({
           date: new Date(tx.date_created).toLocaleString(),
-          id: tx.id?.toString() ?? "-", // ✅ Use tx.id instead of tx.hash
+          id: tx.id?.toString() ?? "-",
           type: tx.transaction_type?.name ?? "-",
           amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
           asset: tx.currency_data?.asset_type ?? "-",
@@ -378,12 +443,11 @@ export default function WalletDetailPage() {
 
         if (res.data.labels && res.data.data[0]?.values) {
           const chartData = res.data.labels.map((label: string, i: number) => ({
-            date: new Date(label).toLocaleDateString(), // Use toLocaleDateString for cleaner date format
+            date: new Date(label).toLocaleDateString(),
             balance: res.data.data[0].values[i],
           }));
           setWallet((prev) => (prev ? { ...prev, chartData } : null));
         } else {
-          // Handle case with no chart data
           setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
         }
       } catch (err) {
@@ -504,7 +568,10 @@ export default function WalletDetailPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-gray-900">
-                    ${wallet.currentBalance.toLocaleString()}
+                    ${wallet.currentBalance.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </div>
                   <div className="text-sm text-gray-500">Current Balance</div>
                 </div>
@@ -516,7 +583,10 @@ export default function WalletDetailPage() {
               {[wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived].map((v, i) => (
                 <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6">
                   <p className="text-sm text-gray-500">{["Total Deposit", "Total Withdrawal", "Total Received"][i]}</p>
-                  <p className="text-2xl font-semibold text-gray-900 mt-1">${v.toLocaleString()}</p>
+                  <p className="text-2xl font-semibold text-gray-900 mt-1">${v.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}</p>
                 </div>
               ))}
             </div>
@@ -597,11 +667,11 @@ export default function WalletDetailPage() {
               </div>
             </div>
 
-            {/* Assets Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Pie Chart */}
+            {/* Assets Section - NEW DESIGN */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Asset Category */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-6">
                   <h3 className="text-base font-semibold text-gray-900">Asset Category</h3>
                   <button className="text-gray-400 hover:text-gray-600">
                     <MoreHorizontal size={18} />
@@ -609,47 +679,54 @@ export default function WalletDetailPage() {
                 </div>
 
                 <div className="flex items-center justify-between">
+                  {/* Pie Chart */}
                   <div className="relative w-40 h-40">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={wallet.assets.map((a) => ({
-                            name: a.name,
-                            value: a.percentage,
-                          }))}
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {wallet.assets.map((a, i) => (
-                            <Cell
-                              key={i}
-                              fill={a.color}
-                            />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
+                    {wallet.assetCategories.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={wallet.assetCategories.map((cat) => ({
+                              name: cat.label,
+                              value: cat.percentage,
+                            }))}
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={2}
+                            dataKey="value"
+                          >
+                            {wallet.assetCategories.map((cat, i) => (
+                              <Cell key={i} fill={cat.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : null}
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-2xl font-bold text-gray-900">
-                        ${wallet.currentBalance.toLocaleString()}
+                        ${(wallet.currentBalance / 1000).toLocaleString("en-US", {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 1,
+                        })}K
                       </span>
                       <span className="text-sm text-gray-500">Total</span>
                     </div>
                   </div>
 
-                  <div className="space-y-3 ml-6">
-                    {wallet.assets.map((a, i) => (
-                      <div key={i} className="flex items-center gap-2">
+                  {/* Legend */}
+                  <div className="space-y-4 ml-8 flex-1">
+                    {wallet.assetCategories.map((cat, i) => (
+                      <div key={i} className="flex items-center gap-3">
                         <span
-                          className={`w-2.5 h-2.5 rounded-full`}
-                          style={{ backgroundColor: a.color }}
+                          className={`w-3 h-3 rounded-full flex-shrink-0`}
+                          style={{ backgroundColor: cat.color }}
                         ></span>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{a.name}</p>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{cat.label}</p>
                           <p className="text-xs text-gray-500">
-                            {a.percentage}% - {a.amount}
+                            {cat.percentage}% • ${cat.totalValue.toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </p>
                         </div>
                       </div>
@@ -660,46 +737,82 @@ export default function WalletDetailPage() {
 
               {/* Asset List */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-base font-semibold text-gray-900">Asset List</h3>
+                <div className="flex items-start justify-between mb-6">
+                  <h3 className="text-base font-semibold text-gray-900">Asset list</h3>
                   <button className="text-gray-400 hover:text-gray-600">
                     <MoreHorizontal size={18} />
                   </button>
                 </div>
 
-                <div className="divide-y divide-gray-100">
-                  {wallet.assets.length === 0 ? (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {wallet.balances.length === 0 ? (
                     <p className="text-center py-6 text-gray-500">No assets found</p>
                   ) : (
-                    wallet.assets.map((asset, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between py-3 hover:bg-gray-50 transition"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-sm"
-                            style={{ backgroundColor: asset.color }}
-                          >
-                            {asset.name.slice(0, 2).toUpperCase()}
+                    wallet.balances.map((balance, i) => {
+                      const pnl = parsePnL(balance.pnl);
+
+                      return (
+                        <div key={i} className="flex items-center justify-between py-4 px-3 hover:bg-gray-50 rounded-lg transition border-b border-gray-100 last:border-b-0">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {/* Currency Icon */}
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-gray-100">
+                              {balance.currency.link ? (
+                                <img
+                                  src={balance.currency.link}
+                                  alt={balance.currency.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                    e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-semibold text-gray-600">${balance.currency.name.slice(0, 2).toUpperCase()}</span>`;
+                                  }}
+                                />
+                              ) : (
+                                <span className="text-xs font-semibold text-gray-600">
+                                  {balance.currency.name.slice(0, 2).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Currency Details */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate">
+                                {balance.currency.name}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {balance.currency.full_name}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {asset.name}
+
+                          {/* Value and PnL */}
+                          <div className="text-right ml-2 flex-shrink-0">
+                            <p className="text-sm font-semibold text-gray-900">
+                              ${balance.total_value.toLocaleString("en-US", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {asset.percentage}% of total
-                            </p>
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              {pnl.isPositive ? (
+                                <>
+                                  <TrendingUp size={14} className="text-green-500" />
+                                  <span className="text-xs text-green-500 font-medium">
+                                    +{pnl.value.toFixed(2)}%
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <TrendingDown size={14} className="text-red-500" />
+                                  <span className="text-xs text-red-500 font-medium">
+                                    {pnl.value.toFixed(2)}%
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-gray-900">
-                            ${Number(asset.amount).toLocaleString()}
-                          </p>
-                          <p className="text-xs text-gray-500">—</p>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
