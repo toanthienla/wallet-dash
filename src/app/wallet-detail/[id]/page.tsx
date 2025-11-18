@@ -82,6 +82,7 @@ interface WalletDetail {
   assetCategories: AssetCategory[];
 }
 
+// --- MODIFIED: Updated PaginationMeta type to remove cursors ---
 interface PaginationMeta {
   totalItems: number;
   totalPages: number;
@@ -89,9 +90,8 @@ interface PaginationMeta {
   itemsPerPage: number;
   hasNext: boolean;
   hasPrev: boolean;
-  nextCursor: string | null;
-  prevCursor: string | null;
 }
+
 
 // Colors
 const COLORS = [
@@ -284,8 +284,9 @@ export default function WalletDetailPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
-  // Pagination State
+  // --- MODIFIED: Pagination state updated for page-number based logic ---
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10); // Corresponds to 'take'
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>({
     totalItems: 0,
     totalPages: 1,
@@ -293,12 +294,10 @@ export default function WalletDetailPage() {
     itemsPerPage: 10,
     hasNext: false,
     hasPrev: false,
-    nextCursor: null,
-    prevCursor: null,
   });
 
-  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
-  const [pageSize, setPageSize] = useState(10);
+  // --- REMOVED: Cursor history state is no longer needed ---
+  // const [cursorHistory, setCursorHistory] = useState<string[]>([]);
 
   // ✅ Fetch Wallet Details
   useEffect(() => {
@@ -371,49 +370,34 @@ export default function WalletDetailPage() {
     fetchWallet();
   }, [walletAddress]);
 
-  // ✅ Fetch Transaction History with Cursor-Based Pagination
+  // --- MODIFIED: Fetch Transaction History with Page-Number-Based Pagination ---
   useEffect(() => {
     if (!walletAddress) return;
 
     const fetchTransactions = async () => {
       try {
         setLoadingTx(true);
-        const params: any = {
-          limit: pageSize,
+        const params = {
+          page: currentPage,
+          take: pageSize, // Using 'take' as specified in your new parameters
         };
-
-        // Use cursor for pagination if on page > 1
-        if (currentPage > 1 && cursorHistory.length > 0) {
-          params.cursor = cursorHistory[currentPage - 2];
-        }
 
         const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`, {
           params,
         });
 
         const responseData = res.data?.data;
-        const paginatedInfo = responseData?.paginated || {};
-
-        // Calculate total pages
-        const totalRecords = paginatedInfo.number_records || 0;
-        const limit = paginatedInfo.limit || pageSize;
-        const totalPages = Math.ceil(totalRecords / limit);
+        // Assuming pagination data is directly in `responseData` as per your example
+        const paginatedInfo = responseData;
 
         setPaginationMeta({
-          totalItems: totalRecords,
-          totalPages,
-          currentPage,
-          itemsPerPage: limit,
+          totalItems: paginatedInfo.number_records || 0,
+          totalPages: paginatedInfo.pages || 1,
+          currentPage: paginatedInfo.page || currentPage,
+          itemsPerPage: paginatedInfo.take || pageSize,
           hasNext: paginatedInfo.has_next || false,
           hasPrev: paginatedInfo.has_prev || false,
-          nextCursor: paginatedInfo.next_cursor || null,
-          prevCursor: paginatedInfo.prev_cursor || null,
         });
-
-        // Update cursor history for forward/backward navigation
-        if (paginatedInfo.next_cursor && !cursorHistory.includes(paginatedInfo.next_cursor)) {
-          setCursorHistory((prev) => [...prev, paginatedInfo.next_cursor]);
-        }
 
         const transactions_data = responseData?.transactions || [];
 
@@ -438,7 +422,7 @@ export default function WalletDetailPage() {
     };
 
     fetchTransactions();
-  }, [walletAddress, currentPage, pageSize]);
+  }, [walletAddress, currentPage, pageSize]); // Dependency array is now simpler
 
   // ✅ Fetch Chart Data
   useEffect(() => {
@@ -467,7 +451,7 @@ export default function WalletDetailPage() {
     fetchWalletChart();
   }, [walletAddress]);
 
-  // Pagination Handlers
+  // --- MODIFIED: Pagination Handlers are now simpler ---
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= paginationMeta.totalPages) {
       setCurrentPage(newPage);
@@ -477,8 +461,7 @@ export default function WalletDetailPage() {
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
-    setCurrentPage(1);
-    setCursorHistory([]);
+    setCurrentPage(1); // Reset to page 1 when page size changes
   };
 
   if (loading) {
