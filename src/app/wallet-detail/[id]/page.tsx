@@ -55,6 +55,13 @@ interface WalletDetail {
   assets: WalletAsset[];
 }
 
+interface PaginationMeta {
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  itemsPerPage: number;
+}
+
 // --- Dynamic Color Generation ---
 const COLORS = [
   "#10b981", // green-500
@@ -222,12 +229,12 @@ export default function WalletDetailPage() {
 
   // --- Pagination State & Logic ---
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(transactions.length / itemsPerPage);
-  const paginatedTransactions = transactions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>({
+    totalItems: 0,
+    totalPages: 1,
+    currentPage: 1,
+    itemsPerPage: 10,
+  });
 
   // ✅ Fetch Wallet Details
   useEffect(() => {
@@ -278,16 +285,39 @@ export default function WalletDetailPage() {
     fetchWallet();
   }, [walletAddress]);
 
-  // ✅ Fetch Transaction History
+  // ✅ Fetch Transaction History with Pagination
   useEffect(() => {
     if (!walletAddress) return;
 
     const fetchTransactions = async () => {
       try {
-        const res = await axiosClient.get(`${API_URL}/transaction/dashboard/${walletAddress}`);
-        const data = res.data?.data?.transactions || [];
+        setLoadingTx(true);
+        const res = await axiosClient.get(
+          `${API_URL}/transaction/dashboard/${walletAddress}`,
+          {
+            params: {
+              page: currentPage,
+              limit: paginationMeta.itemsPerPage,
+            },
+          }
+        );
+        const responseData = res.data?.data;
 
-        const formatted = data.map((tx: any) => ({
+        // Handle pagination metadata from API
+        const totalItems = responseData?.pagination?.total || responseData?.totalItems || 0;
+        const totalPages = responseData?.pagination?.total_pages || responseData?.totalPages || 1;
+        const itemsPerPage = responseData?.pagination?.per_page || responseData?.itemsPerPage || 10;
+
+        setPaginationMeta({
+          totalItems,
+          totalPages,
+          currentPage,
+          itemsPerPage,
+        });
+
+        const transactions_data = responseData?.transactions || [];
+
+        const formatted = transactions_data.map((tx: any) => ({
           date: new Date(tx.date_created).toLocaleString(),
           id: tx.hash ?? "-",
           type: tx.transaction_type?.name ?? "-",
@@ -309,7 +339,7 @@ export default function WalletDetailPage() {
     };
 
     fetchTransactions();
-  }, [walletAddress]);
+  }, [walletAddress, currentPage]);
 
   // ✅ Fetch Chart Data from statistic-total-assets API
   useEffect(() => {
@@ -687,7 +717,7 @@ export default function WalletDetailPage() {
                         </td>
                       </tr>
                     ) : (
-                      paginatedTransactions.map((t, i) => (
+                      transactions.map((t, i) => (
                         <tr key={i} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-6">{t.date}</td>
                           <td className="py-3 px-6 text-blue-600 font-mono text-xs">
@@ -729,44 +759,54 @@ export default function WalletDetailPage() {
 
               {/* Pagination */}
               <div className="flex items-center justify-between mt-6">
-                <button
-                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition ${currentPage === 1
-                    ? "text-gray-400 cursor-not-allowed bg-gray-50"
-                    : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                >
-                  ← Previous
-                </button>
-
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages || 1 }).map((_, i) => (
-                    <button
-                      key={i}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition ${i + 1 === currentPage
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-600 hover:bg-gray-100"
-                        }`}
-                      onClick={() => setCurrentPage(i + 1)}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                <div className="text-sm text-gray-600">
+                  Showing {transactions.length === 0 ? 0 : (currentPage - 1) * paginationMeta.itemsPerPage + 1} to{" "}
+                  {Math.min(currentPage * paginationMeta.itemsPerPage, paginationMeta.totalItems)} of{" "}
+                  {paginationMeta.totalItems} transactions
                 </div>
 
-                <button
-                  className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition ${currentPage === totalPages
-                    ? "text-gray-400 cursor-not-allowed bg-gray-50"
-                    : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  disabled={currentPage === totalPages}
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                >
-                  Next →
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition ${currentPage === 1
+                      ? "text-gray-400 cursor-not-allowed bg-gray-50"
+                      : "text-gray-600 hover:bg-gray-50"
+                      }`}
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  >
+                    ← Previous
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: paginationMeta.totalPages || 1 }).map((_, i) => (
+                      <button
+                        key={i}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition ${i + 1 === currentPage
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                        onClick={() => setCurrentPage(i + 1)}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition ${currentPage === paginationMeta.totalPages
+                      ? "text-gray-400 cursor-not-allowed bg-gray-50"
+                      : "text-gray-600 hover:bg-gray-50"
+                      }`}
+                    disabled={currentPage === paginationMeta.totalPages}
+                    onClick={() =>
+                      setCurrentPage((prev) =>
+                        Math.min(prev + 1, paginationMeta.totalPages)
+                      )
+                    }
+                  >
+                    Next →
+                  </button>
+                </div>
               </div>
             </section>
           </main>
