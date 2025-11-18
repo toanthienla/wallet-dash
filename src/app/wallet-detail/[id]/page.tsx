@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import AppSidebar from "@/layout/AppSidebar";
 import AppHeader from "@/layout/AppHeader";
@@ -83,7 +83,7 @@ function getUserColor(userId: string | null): string {
   if (!userId) {
     return getAssetColor(0); // Default green for no user
   }
-  const hash = hashCode(userId.toString());
+  const hash = hashCode(userId);
   return getAssetColor(hash);
 }
 
@@ -212,7 +212,7 @@ function TransactionTableSkeleton() {
 
 export default function WalletDetailPage() {
   const params = useParams();
-  const walletAddress = (params as any)?.id as string;
+  const walletAddress = params.id as string;
 
   const [wallet, setWallet] = useState<WalletDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -220,18 +220,10 @@ export default function WalletDetailPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
-  // Chart / PnL state
-  const [pnl, setPnl] = useState<number | null>(null);
-  const [pnlPercent, setPnlPercent] = useState<number | null>(null);
-
-  // showAll toggle for chart - when false show last N points, when true show all points
-  const [showAllDates, setShowAllDates] = useState(false);
-  const LIST_MAX_POINTS = 20; // default points to show when "Show all" is off
-
   // --- Pagination State & Logic ---
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const totalPages = Math.max(1, Math.ceil(transactions.length / itemsPerPage));
+  const totalPages = Math.ceil(transactions.length / itemsPerPage);
   const paginatedTransactions = transactions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -246,38 +238,32 @@ export default function WalletDetailPage() {
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/${walletAddress}`);
         const apiData = res.data?.data;
 
-        if (!apiData) {
-          setWallet(null);
-          return;
-        }
+        // FIX: Calculate total balance from the 'balances' array
+        const totalAssetsValue = apiData.balances.reduce((sum: number, asset: any) => sum + asset.total_value, 0);
 
-        // Calculate total balance from the 'balances' array
-        const totalAssetsValue = Array.isArray(apiData.balances)
-          ? apiData.balances.reduce((sum: number, asset: any) => sum + (asset.total_value || 0), 0)
-          : 0;
-
-        const assets: WalletAsset[] = (apiData.balances || []).map((b: any, i: number) => ({
-          name: b.currency?.name || b.currency_slug || "Unknown",
-          amount: (typeof b.assets === "number" ? b.assets : parseFloat(b.assets || 0)).toFixed(4),
+        const assets = apiData.balances.map((b: any, i: number) => ({
+          name: b.currency.name,
+          amount: b.assets.toFixed(4),
+          // FIX: Prevent division by zero
           percentage: totalAssetsValue > 0 ? parseFloat(((b.total_value / totalAssetsValue) * 100).toFixed(2)) : 0,
           color: getAssetColor(i),
         }));
 
-        const { fullName, initials } = generateUserInfo(apiData.user || { first_name: null, last_name: null, username: "Unknown" });
-        const userId = apiData.user?.id ?? null;
+        const { fullName, initials } = generateUserInfo(apiData.user);
+        const userId = apiData.user.id;
         const userColor = getUserColor(userId);
 
         setWallet({
           userName: fullName,
           userInitials: initials,
-          email: apiData.user?.email || "-",
-          walletAddress: apiData.wallet_address || walletAddress,
+          email: apiData.user.email,
+          walletAddress: apiData.wallet_address,
           userId,
           userColor,
-          currentBalance: totalAssetsValue,
-          totalDeposit: apiData.total_deposit || 0,
-          totalWithdrawal: apiData.total_withdrawn || 0,
-          totalReceived: apiData.total_received || 0,
+          currentBalance: totalAssetsValue, // FIX: Use calculated total
+          totalDeposit: apiData.total_deposit,
+          totalWithdrawal: apiData.total_withdrawn,
+          totalReceived: apiData.total_received,
           assets,
           chartData: [],
         });
@@ -305,11 +291,12 @@ export default function WalletDetailPage() {
           date: new Date(tx.date_created).toLocaleString(),
           id: tx.hash ?? "-",
           type: tx.transaction_type?.name ?? "-",
-          amount: `${tx.amount} ${String(tx.currency_slug || "").toUpperCase()}`.trim(),
+          amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
+          // FIX: Use asset_type from currency_data
           asset: tx.currency_data?.asset_type ?? "-",
           assetType: tx.currency_data?.asset_type ?? "-",
           address: tx.from_address || tx.to_address || "-",
-          status: tx.transaction_status || "-",
+          status: tx.transaction_status,
         }));
 
         setTransactions(formatted);
@@ -324,7 +311,7 @@ export default function WalletDetailPage() {
     fetchTransactions();
   }, [walletAddress]);
 
-  // ✅ Fetch Chart Data from statistic-total-assets API and PnL
+  // ✅ Fetch Chart Data from statistic-total-assets API
   useEffect(() => {
     if (!walletAddress) return;
 
@@ -334,39 +321,16 @@ export default function WalletDetailPage() {
           `${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`
         );
 
-        const resp = res.data || {};
-        const labels: string[] = Array.isArray(resp.labels) ? resp.labels : [];
-        const values: number[] = Array.isArray(resp.data) && Array.isArray(resp.data[0]?.values)
-          ? resp.data[0].values
-          : [];
-
-        // Use the minimum length (defensive) in case labels/values mismatch
-        const len = Math.min(labels.length, values.length);
-
-        const chartData: { date: string; balance: number }[] = [];
-        for (let i = 0; i < len; i++) {
-          const dt = labels[i] ? new Date(labels[i]) : null;
-          chartData.push({
-            date: dt ? dt.toLocaleString() : labels[i] ?? String(i),
-            balance: typeof values[i] === "number" ? values[i] : Number(values[i] || 0),
-          });
+        if (res.data.labels && res.data.data[0]?.values) {
+          const chartData = res.data.labels.map((label: string, i: number) => ({
+            date: new Date(label).toLocaleDateString(), // Use toLocaleDateString for cleaner date format
+            balance: res.data.data[0].values[i],
+          }));
+          setWallet((prev) => (prev ? { ...prev, chartData } : null));
+        } else {
+          // Handle case with no chart data
+          setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
         }
-
-        // If there are labels but no values, still map labels with balance 0
-        if (len === 0 && labels.length > 0) {
-          for (let i = 0; i < labels.length; i++) {
-            const dt = labels[i] ? new Date(labels[i]) : null;
-            chartData.push({
-              date: dt ? dt.toLocaleString() : labels[i] ?? String(i),
-              balance: 0,
-            });
-          }
-        }
-
-        setWallet((prev) => (prev ? { ...prev, chartData } : prev));
-        // set pnl info if available
-        if (typeof resp.pnl === "number") setPnl(resp.pnl);
-        if (typeof resp.pnl_percent === "number") setPnlPercent(resp.pnl_percent);
       } catch (err) {
         console.error("Error fetching chart data:", err);
       }
@@ -374,14 +338,6 @@ export default function WalletDetailPage() {
 
     fetchWalletChart();
   }, [walletAddress]);
-
-  // Memoized visible chart data (either all points or the last N)
-  const visibleChartData = useMemo(() => {
-    if (!wallet?.chartData || wallet.chartData.length === 0) return [];
-    if (showAllDates) return wallet.chartData;
-    // Return last LIST_MAX_POINTS points
-    return wallet.chartData.slice(Math.max(0, wallet.chartData.length - LIST_MAX_POINTS));
-  }, [wallet, showAllDates]);
 
   if (loading) {
     return (
@@ -453,8 +409,6 @@ export default function WalletDetailPage() {
       </div>
     );
   }
-
-  const pnlIsPositive = (pnlPercent ?? 0) >= 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -551,72 +505,32 @@ export default function WalletDetailPage() {
                   </button>
 
                   <div className="flex items-center gap-6">
-                    {/* Show PnL info pulled from statistic API */}
                     <div className="flex flex-col text-right">
-                      <p className="text-sm text-gray-500">PnL</p>
-                      <p className="text-base font-semibold text-gray-900">
-                        {pnl !== null ? `$${pnl.toLocaleString(undefined, { maximumFractionDigits: 8 })}` : "—"}
-                      </p>
+                      <p className="text-sm text-gray-500">Avg. Deposit</p>
+                      <p className="text-base font-semibold text-gray-900">$212,142.12</p>
                     </div>
                     <div className="flex flex-col text-right">
-                      <p className="text-sm text-gray-500">PnL %</p>
-                      <p
-                        className={`text-base font-semibold ${pnlIsPositive ? "text-green-600" : "text-red-600"}`}
-                      >
-                        {pnlPercent !== null ? `${(pnlPercent * 100).toFixed(6)}%` : "—"}
-                      </p>
+                      <p className="text-sm text-gray-500">Avg. Interest</p>
+                      <p className="text-base font-semibold text-gray-900">$30,321.23</p>
                     </div>
-                  </div>
-
-                  {/* Show All Dates Toggle */}
-                  <div className="flex items-center gap-2 ml-3">
-                    <label className="text-sm text-gray-600">Show all dates</label>
-                    <button
-                      onClick={() => setShowAllDates((s) => !s)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium border ${showAllDates ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
-                      aria-pressed={showAllDates}
-                    >
-                      {showAllDates ? "All" : `Last ${LIST_MAX_POINTS}`}
-                    </button>
                   </div>
                 </div>
               </div>
 
               <div className="h-80">
-                {visibleChartData && visibleChartData.length > 0 ? (
+                {wallet.chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={visibleChartData}>
+                    <LineChart data={wallet.chartData}>
                       <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        stroke="#9CA3AF"
-                        tickFormatter={(value) => {
-                          // If showing all points, show shorter date to avoid overlap
-                          if (showAllDates) {
-                            // try to show time only if space is limited
-                            try {
-                              const d = new Date(value);
-                              return d.toLocaleTimeString();
-                            } catch {
-                              return String(value);
-                            }
-                          } else {
-                            // show date and time for fewer points
-                            return value;
-                          }
-                        }}
-                        interval="preserveEnd"
-                        minTickGap={10}
-                      />
+                      <XAxis dataKey="date" stroke="#9CA3AF" />
                       <YAxis stroke="#9CA3AF" />
-                      <Tooltip labelFormatter={(label) => `Time: ${label}`} />
+                      <Tooltip />
                       <Line
                         type="monotone"
                         dataKey="balance"
                         stroke="#2563EB"
                         strokeWidth={2.5}
                         dot={false}
-                        isAnimationActive={false}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -749,7 +663,7 @@ export default function WalletDetailPage() {
                       <th className="py-3 px-6">Date/time</th>
                       <th className="py-3 px-6">Transaction ID</th>
                       <th className="py-3 px-6">Type</th>
-                      <th className="py-3 px-6">Assets</th>
+                      <th className="py-3 px-6">Amount</th>
                       <th className="py-3 px-6">Asset</th>
                       <th className="py-3 px-6">Wallet Address</th>
                       <th className="py-3 px-6">Status</th>
@@ -827,7 +741,7 @@ export default function WalletDetailPage() {
                 </button>
 
                 <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages }).map((_, i) => (
+                  {Array.from({ length: totalPages || 1 }).map((_, i) => (
                     <button
                       key={i}
                       className={`w-8 h-8 rounded-lg text-sm font-medium transition ${i + 1 === currentPage
@@ -860,4 +774,4 @@ export default function WalletDetailPage() {
       </div>
     </div>
   );
-} 
+}
