@@ -68,12 +68,12 @@ function ErrorState() {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-1">No User Wallet Data</h3>
-        <p className="text-gray-500">Unable to load user wallet data. Please try again later.</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-1">Error Loading Data</h3>
+        <p className="text-gray-500">Unable to load user wallet dashboard data. Please try again later.</p>
       </div>
     </div>
   );
@@ -98,8 +98,9 @@ export default function UserWalletPage() {
         setLoading(true);
         setError(false);
 
+        // --- MODIFIED: Updated the API endpoint as requested ---
         const response = await axiosClient.get(
-          `${API_URL}/wallets/dashboard/list`
+          `${API_URL}/wallets/dashboard/overview`
         );
 
         console.log("📊 Dashboard result:", response.data);
@@ -134,7 +135,7 @@ export default function UserWalletPage() {
 
   const formatNumber = (num: number) => new Intl.NumberFormat("en-US").format(num);
   const formatCurrency = (num: number) =>
-    "$" + new Intl.NumberFormat("en-US").format(num);
+    "$" + new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 
   return (
     <div className="space-y-6">
