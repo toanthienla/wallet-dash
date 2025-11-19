@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import AppSidebar from "@/layout/AppSidebar";
 import AppHeader from "@/layout/AppHeader";
-import StatisticsChart from "@/components/StatisticsChart";
+import StatisticsChart from "@/components/user-wallet/StatisticsChart";
 import { ArrowLeft, MoreHorizontal, TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
