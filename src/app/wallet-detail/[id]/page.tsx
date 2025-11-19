@@ -3,15 +3,17 @@ import React, { useEffect, useState } from "react";
 import AppSidebar from "@/layout/AppSidebar";
 import AppHeader from "@/layout/AppHeader";
 import StatisticsChart from "@/components/user-wallet/StatisticsChart";
-import { ArrowLeft, MoreHorizontal, TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  MoreHorizontal,
+  TrendingUp,
+  TrendingDown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { API_URL } from "@/utils/constants";
 import axiosClient from "@/utils/axiosClient";
 
@@ -71,7 +73,7 @@ interface WalletDetail {
   totalDeposit: number;
   totalWithdrawal: number;
   totalReceived: number;
-  chartData: { date: string; balance: number }[];
+  chartData: { date: string; balance: number }[]; // kept for compatibility but we use separate chartData state
   balances: Balance[];
   assetCategories: AssetCategory[];
 }
@@ -274,6 +276,9 @@ export default function WalletDetailPage() {
   const [wallet, setWallet] = useState<WalletDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Separate chartData state to avoid race conditions between wallet fetch and chart fetch
+  const [chartData, setChartData] = useState<{ date: string; balance: number }[]>([]);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
@@ -324,7 +329,9 @@ export default function WalletDetailPage() {
             label: ASSET_TYPE_LABELS[type] || type,
             totalValue: categoryTotal,
             percentage,
-            color: ASSET_TYPE_COLORS[type] || getAssetColor(Object.keys(groupedByType).indexOf(type)),
+            color:
+              ASSET_TYPE_COLORS[type] ||
+              getAssetColor(Object.keys(groupedByType).indexOf(type)),
           });
         });
 
@@ -346,7 +353,7 @@ export default function WalletDetailPage() {
           totalReceived: apiData.total_received,
           balances,
           assetCategories,
-          chartData: [],
+          chartData: [], // kept but not used; chartData is in separate state
         });
       } catch (error) {
         console.error("Error fetching wallet:", error);
@@ -366,7 +373,6 @@ export default function WalletDetailPage() {
     const fetchTransactions = async () => {
       try {
         setLoadingTx(true);
-        // Use page and take for query parameters
         const params = {
           page: currentPage,
           take: pageSize,
@@ -377,15 +383,11 @@ export default function WalletDetailPage() {
         });
 
         const responseData = res.data?.data;
-
-        // Extract pagination info from the "paginated" object
         const paginatedInfo = responseData?.paginated || {};
 
-        // Calculate total pages from number_records and limit
         const totalItems = paginatedInfo.number_records || 0;
         const itemsPerPage = paginatedInfo.limit || pageSize;
         const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-
         const hasPrev = currentPage > 1;
         const hasNext = paginatedInfo.has_next || false;
 
@@ -398,7 +400,6 @@ export default function WalletDetailPage() {
           hasPrev,
         });
 
-        // Extract transactions array
         const transactions_data = responseData?.transactions || [];
 
         const formatted = transactions_data.map((tx: any) => ({
@@ -424,7 +425,7 @@ export default function WalletDetailPage() {
     fetchTransactions();
   }, [walletAddress, currentPage, pageSize]);
 
-  // Fetch Chart Data - preserve ISO labels and pass them to the chart component
+  // Fetch Chart Data - store in separate state to avoid race condition
   useEffect(() => {
     if (!walletAddress) return;
 
@@ -438,19 +439,19 @@ export default function WalletDetailPage() {
         const values: number[] = res.data?.data?.[0]?.values || [];
 
         if (labels.length && values.length) {
-          // Build chart data preserving the original ISO timestamp string so the chart can format times/dates
-          const chartData = labels.map((label: string, i: number) => ({
-            date: label, // KEEP ISO string, formatting handled in the chart component
+          // Keep ISO timestamps so formatting with time is preserved in the chart component
+          const newChartData = labels.map((label: string, i: number) => ({
+            date: label,
             balance: Number(values[i] ?? 0),
           }));
 
-          setWallet((prev) => (prev ? { ...prev, chartData } : null));
+          setChartData(newChartData);
         } else {
-          setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
+          setChartData([]);
         }
       } catch (err) {
         console.error("Error fetching chart data:", err);
-        setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
+        setChartData([]);
       }
     };
 
@@ -461,7 +462,6 @@ export default function WalletDetailPage() {
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= paginationMeta.totalPages) {
       setCurrentPage(newPage);
-      // Scroll to top of transactions table
       document.querySelector("table")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
@@ -579,10 +579,7 @@ export default function WalletDetailPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-gray-900">
-                    ${wallet.currentBalance.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    ${wallet.currentBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <div className="text-sm text-gray-500">Current Balance</div>
                 </div>
@@ -591,25 +588,20 @@ export default function WalletDetailPage() {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {[wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived].map(
-                (v, i) => (
-                  <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6">
-                    <p className="text-sm text-gray-500">
-                      {["Total Deposit", "Total Withdrawal", "Total Received"][i]}
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900 mt-1">
-                      ${v.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </p>
-                  </div>
-                )
-              )}
+              {[wallet.totalDeposit, wallet.totalWithdrawal, wallet.totalReceived].map((v, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6">
+                  <p className="text-sm text-gray-500">
+                    {["Total Deposit", "Total Withdrawal", "Total Received"][i]}
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900 mt-1">
+                    ${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              ))}
             </div>
 
-            {/* Chart Section - Using StatisticsChart Component (shows all data in a table below chart) */}
-            {wallet && <StatisticsChart chartData={wallet.chartData} />}
+            {/* Chart Section - Using StatisticsChart component, passing separate chartData */}
+            <StatisticsChart chartData={chartData} />
 
             {/* Assets Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -629,10 +621,7 @@ export default function WalletDetailPage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={wallet.assetCategories.map((cat) => ({
-                              name: cat.label,
-                              value: cat.percentage,
-                            }))}
+                            data={wallet.assetCategories.map((cat) => ({ name: cat.label, value: cat.percentage }))}
                             innerRadius={60}
                             outerRadius={80}
                             dataKey="value"
@@ -660,17 +649,11 @@ export default function WalletDetailPage() {
                   <div className="space-y-4 ml-8 flex-1">
                     {wallet.assetCategories.map((cat, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <span
-                          className={`w-3 h-3 rounded-full flex-shrink-0`}
-                          style={{ backgroundColor: cat.color }}
-                        ></span>
+                        <span className={`w-3 h-3 rounded-full flex-shrink-0`} style={{ backgroundColor: cat.color }}></span>
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">{cat.label}</p>
                           <p className="text-xs text-gray-500">
-                            {cat.percentage}% • ${cat.totalValue.toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
+                            {cat.percentage}% • ${cat.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                         </div>
                       </div>
@@ -696,10 +679,7 @@ export default function WalletDetailPage() {
                       const pnl = parsePnL(balance.pnl);
 
                       return (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between py-4 px-3 hover:bg-gray-50 rounded-lg transition border-b border-gray-100 last:border-b-0"
-                        >
+                        <div key={i} className="flex items-center justify-between py-4 px-3 hover:bg-gray-50 rounded-lg transition border-b border-gray-100 last:border-b-0">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             {/* Currency Icon */}
                             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-gray-100">
@@ -712,9 +692,7 @@ export default function WalletDetailPage() {
                                     e.currentTarget.style.display = "none";
                                     const parent = e.currentTarget.parentElement;
                                     if (parent) {
-                                      parent.innerHTML = `<span class="text-xs font-semibold text-gray-600">${balance.currency.name
-                                        .slice(0, 2)
-                                        .toUpperCase()}</span>`;
+                                      parent.innerHTML = `<span class="text-xs font-semibold text-gray-600">${balance.currency.name.slice(0, 2).toUpperCase()}</span>`;
                                     }
                                   }}
                                 />
@@ -727,37 +705,26 @@ export default function WalletDetailPage() {
 
                             {/* Currency Details */}
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-900 truncate">
-                                {balance.currency.name}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate">
-                                {balance.currency.full_name}
-                              </p>
+                              <p className="text-sm font-semibold text-gray-900 truncate">{balance.currency.name}</p>
+                              <p className="text-xs text-gray-500 truncate">{balance.currency.full_name}</p>
                             </div>
                           </div>
 
                           {/* Value and PnL */}
                           <div className="text-right ml-2 flex-shrink-0">
                             <p className="text-sm font-semibold text-gray-900">
-                              ${balance.total_value.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
+                              ${balance.total_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                             <div className="flex items-center justify-end gap-1 mt-1">
                               {pnl.isPositive ? (
                                 <>
                                   <TrendingUp size={14} className="text-green-500" />
-                                  <span className="text-xs text-green-500 font-medium">
-                                    +{pnl.value.toFixed(2)}%
-                                  </span>
+                                  <span className="text-xs text-green-500 font-medium">+{pnl.value.toFixed(2)}%</span>
                                 </>
                               ) : (
                                 <>
                                   <TrendingDown size={14} className="text-red-500" />
-                                  <span className="text-xs text-red-500 font-medium">
-                                    {pnl.value.toFixed(2)}%
-                                  </span>
+                                  <span className="text-xs text-red-500 font-medium">{pnl.value.toFixed(2)}%</span>
                                 </>
                               )}
                             </div>
@@ -775,9 +742,7 @@ export default function WalletDetailPage() {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-base font-semibold text-gray-900">Transaction History</h3>
                 <div className="flex items-center gap-2">
-                  <label htmlFor="pageSize" className="text-sm text-gray-600">
-                    Show:
-                  </label>
+                  <label htmlFor="pageSize" className="text-sm text-gray-600">Show:</label>
                   <select
                     id="pageSize"
                     value={pageSize}
@@ -818,9 +783,7 @@ export default function WalletDetailPage() {
                       </tr>
                     ) : transactions.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-6 text-gray-500">
-                          No transactions found
-                        </td>
+                        <td colSpan={8} className="text-center py-6 text-gray-500">No transactions found</td>
                       </tr>
                     ) : (
                       transactions.map((t, i) => (
@@ -869,26 +832,17 @@ export default function WalletDetailPage() {
                   ) : (
                     <>
                       Showing{" "}
-                      {paginationMeta.totalItems === 0
-                        ? 0
-                        : (currentPage - 1) * paginationMeta.itemsPerPage + 1}{" "}
+                      {paginationMeta.totalItems === 0 ? 0 : (currentPage - 1) * paginationMeta.itemsPerPage + 1}{" "}
                       to{" "}
-                      {Math.min(
-                        currentPage * paginationMeta.itemsPerPage,
-                        paginationMeta.totalItems
-                      )}{" "}
-                      of <span className="font-semibold">{paginationMeta.totalItems}</span>{" "}
-                      transactions
+                      {Math.min(currentPage * paginationMeta.itemsPerPage, paginationMeta.totalItems)}{" "}
+                      of <span className="font-semibold">{paginationMeta.totalItems}</span> transactions
                     </>
                   )}
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {/* Previous Button */}
                   <button
-                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${currentPage <= 1
-                      ? "text-gray-400 cursor-not-allowed bg-gray-50"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${currentPage <= 1 ? "text-gray-400 cursor-not-allowed bg-gray-50" : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     disabled={currentPage <= 1}
                     onClick={() => handlePageChange(currentPage - 1)}
@@ -897,7 +851,6 @@ export default function WalletDetailPage() {
                     Previous
                   </button>
 
-                  {/* Page Info */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">
                       Page <span className="font-semibold">{currentPage}</span> of{" "}
@@ -905,11 +858,8 @@ export default function WalletDetailPage() {
                     </span>
                   </div>
 
-                  {/* Page Number Input */}
                   <div className="flex items-center gap-2">
-                    <label htmlFor="pageInput" className="text-sm text-gray-600">
-                      Go to:
-                    </label>
+                    <label htmlFor="pageInput" className="text-sm text-gray-600">Go to:</label>
                     <input
                       id="pageInput"
                       type="number"
@@ -926,11 +876,8 @@ export default function WalletDetailPage() {
                     />
                   </div>
 
-                  {/* Next Button */}
                   <button
-                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${!paginationMeta.hasNext
-                      ? "text-gray-400 cursor-not-allowed bg-gray-50"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition ${!paginationMeta.hasNext ? "text-gray-400 cursor-not-allowed bg-gray-50" : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     disabled={!paginationMeta.hasNext}
                     onClick={() => handlePageChange(currentPage + 1)}
@@ -941,7 +888,7 @@ export default function WalletDetailPage() {
                 </div>
               </div>
 
-              {/* Pagination Info - Page Number Buttons */}
+              {/* Page number buttons */}
               {paginationMeta.totalPages > 1 && (
                 <div className="mt-4 flex flex-wrap gap-2 items-center justify-center">
                   {Array.from({ length: Math.min(paginationMeta.totalPages, 5) }, (_, i) => {
@@ -951,10 +898,7 @@ export default function WalletDetailPage() {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${currentPage === pageNum
-                          ? "bg-blue-600 text-white"
-                          : "border border-gray-200 text-gray-700 hover:bg-gray-50"
-                          }`}
+                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${currentPage === pageNum ? "bg-blue-600 text-white" : "border border-gray-200 text-gray-700 hover:bg-gray-50"}`}
                       >
                         {pageNum}
                       </button>
@@ -965,10 +909,7 @@ export default function WalletDetailPage() {
                       <span className="text-gray-400">...</span>
                       <button
                         onClick={() => handlePageChange(paginationMeta.totalPages)}
-                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${currentPage === paginationMeta.totalPages
-                          ? "bg-blue-600 text-white"
-                          : "border border-gray-200 text-gray-700 hover:bg-gray-50"
-                          }`}
+                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${currentPage === paginationMeta.totalPages ? "bg-blue-600 text-white" : "border border-gray-200 text-gray-700 hover:bg-gray-50"}`}
                       >
                         {paginationMeta.totalPages}
                       </button>

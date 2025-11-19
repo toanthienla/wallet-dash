@@ -11,7 +11,7 @@ import {
 } from "recharts";
 
 interface ChartDataPoint {
-  // ISO timestamp string from the API, e.g. "2025-11-18T01:34:33.934Z"
+  // ISO timestamp string from the API (e.g. "2025-11-18T01:34:33.934Z")
   date: string;
   balance: number;
 }
@@ -21,7 +21,7 @@ interface StatisticsChartProps {
 }
 
 export default function StatisticsChart({ chartData }: StatisticsChartProps) {
-  // Format ticks: if all points are on same day, show time, otherwise show date+time
+  // Format X axis ticks: time only if all points are on same day, otherwise show date + time.
   const tickFormatter = (iso: string) => {
     try {
       const d = new Date(iso);
@@ -35,14 +35,13 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
 
       if (sameDay) {
         return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-      } else {
-        return d.toLocaleString(undefined, {
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
       }
+      return d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch {
       return iso;
     }
@@ -61,7 +60,7 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
     if (typeof value !== "number") return String(value);
     return `$${value.toLocaleString("en-US", {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 6,
     })}`;
   };
 
@@ -69,7 +68,7 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
-        {/* Intentionally minimal header — removed Daily/Weekly/Monthly, date range, Avg Deposit/Interest */}
+        {/* Minimal header as requested (removed Daily/Weekly/Monthly, date range and averages) */}
       </div>
 
       <div className="h-80">
@@ -87,9 +86,7 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
               <YAxis
                 stroke="#9CA3AF"
                 tickFormatter={(v) =>
-                  `$${Number(v).toLocaleString("en-US", {
-                    maximumFractionDigits: 0,
-                  })}`
+                  `$${Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`
                 }
               />
               <Tooltip formatter={tooltipValueFormatter} labelFormatter={tooltipLabelFormatter} />
@@ -111,8 +108,8 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
       </div>
 
       {/* Show all raw data points in a scrollable table below the chart */}
-      <div className="mt-4">
-        {chartData && chartData.length > 0 ? (
+      {chartData && chartData.length > 0 && (
+        <div className="mt-4">
           <div className="max-h-64 overflow-auto border border-gray-100 rounded-lg">
             <table className="min-w-full text-sm text-left text-gray-700">
               <thead className="bg-gray-50 sticky top-0">
@@ -146,8 +143,8 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
               </tbody>
             </table>
           </div>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
