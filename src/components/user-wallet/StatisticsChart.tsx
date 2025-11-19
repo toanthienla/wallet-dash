@@ -11,7 +11,7 @@ import {
 } from "recharts";
 
 interface ChartDataPoint {
-  // Keep ISO timestamp string from the API (e.g. "2025-11-18T01:34:33.934Z")
+  // ISO timestamp string from the API, e.g. "2025-11-18T01:34:33.934Z"
   date: string;
   balance: number;
 }
@@ -21,7 +21,7 @@ interface StatisticsChartProps {
 }
 
 export default function StatisticsChart({ chartData }: StatisticsChartProps) {
-  // Format tick for X axis. If points span multiple days show date+time otherwise show time.
+  // Format ticks: if all points are on same day, show time, otherwise show date+time
   const tickFormatter = (iso: string) => {
     try {
       const d = new Date(iso);
@@ -69,51 +69,7 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-gray-50 rounded-full border border-gray-200">
-            {["Daily", "Weekly", "Monthly"].map((label, i) => (
-              <button
-                key={i}
-                className={`px-3 py-1.5 text-sm font-medium rounded-full transition ${label === "Daily"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-                  }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <button className="flex items-center px-3 py-2 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-gray-400 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            05 Feb – 06 March
-          </button>
-
-          <div className="flex items-center gap-6">
-            <div className="flex flex-col text-right">
-              <p className="text-sm text-gray-500">Avg. Deposit</p>
-              <p className="text-base font-semibold text-gray-900">$212,142.12</p>
-            </div>
-            <div className="flex flex-col text-right">
-              <p className="text-sm text-gray-500">Avg. Interest</p>
-              <p className="text-base font-semibold text-gray-900">$30,321.23</p>
-            </div>
-          </div>
-        </div>
+        {/* Intentionally minimal header — removed Daily/Weekly/Monthly, date range, Avg Deposit/Interest */}
       </div>
 
       <div className="h-80">
@@ -152,6 +108,45 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
             <p className="text-gray-500">No statistical data available.</p>
           </div>
         )}
+      </div>
+
+      {/* Show all raw data points in a scrollable table below the chart */}
+      <div className="mt-4">
+        {chartData && chartData.length > 0 ? (
+          <div className="max-h-64 overflow-auto border border-gray-100 rounded-lg">
+            <table className="min-w-full text-sm text-left text-gray-700">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="px-4 py-2 text-xs text-gray-500">#</th>
+                  <th className="px-4 py-2 text-xs text-gray-500">Date / Time</th>
+                  <th className="px-4 py-2 text-xs text-gray-500 text-right">Balance (USD)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chartData.map((d, i) => (
+                  <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="px-4 py-2 align-top text-xs text-gray-600">{i + 1}</td>
+                    <td className="px-4 py-2 align-top text-xs text-gray-800">
+                      {(() => {
+                        try {
+                          return new Date(d.date).toLocaleString();
+                        } catch {
+                          return d.date;
+                        }
+                      })()}
+                    </td>
+                    <td className="px-4 py-2 align-top text-xs text-right font-mono text-gray-900">
+                      ${Number(d.balance).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 6,
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </div>
     </div>
   );

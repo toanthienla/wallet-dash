@@ -288,7 +288,7 @@ export default function WalletDetailPage() {
     hasPrev: false,
   });
 
-  // ✅ Fetch Wallet Details
+  // Fetch Wallet Details
   useEffect(() => {
     if (!walletAddress) return;
 
@@ -359,7 +359,7 @@ export default function WalletDetailPage() {
     fetchWallet();
   }, [walletAddress]);
 
-  // ✅ Fetch Transactions with Page-Based Pagination
+  // Fetch Transactions with Page-Based Pagination
   useEffect(() => {
     if (!walletAddress) return;
 
@@ -386,19 +386,8 @@ export default function WalletDetailPage() {
         const itemsPerPage = paginatedInfo.limit || pageSize;
         const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
-        // Properly determine hasPrev based on currentPage
         const hasPrev = currentPage > 1;
         const hasNext = paginatedInfo.has_next || false;
-
-        console.log("Pagination Debug:", {
-          currentPage,
-          totalPages,
-          hasPrev,
-          hasNext,
-          totalItems,
-          itemsPerPage,
-          paginatedInfo,
-        });
 
         setPaginationMeta({
           totalItems,
@@ -435,7 +424,7 @@ export default function WalletDetailPage() {
     fetchTransactions();
   }, [walletAddress, currentPage, pageSize]);
 
-  // ✅ Fetch Chart Data - preserve ISO labels and pass them to the chart component
+  // Fetch Chart Data - preserve ISO labels and pass them to the chart component
   useEffect(() => {
     if (!walletAddress) return;
 
@@ -619,7 +608,7 @@ export default function WalletDetailPage() {
               )}
             </div>
 
-            {/* Chart Section - Using StatisticsChart Component */}
+            {/* Chart Section - Using StatisticsChart Component (shows all data in a table below chart) */}
             {wallet && <StatisticsChart chartData={wallet.chartData} />}
 
             {/* Assets Section */}
