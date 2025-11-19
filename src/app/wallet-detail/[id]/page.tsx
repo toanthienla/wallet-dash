@@ -73,7 +73,7 @@ interface WalletDetail {
   totalDeposit: number;
   totalWithdrawal: number;
   totalReceived: number;
-  chartData: { date: string; balance: number }[]; // kept for compatibility but we use separate chartData state
+  chartData: { date: string; balance: number }[]; // kept for compatibility
   balances: Balance[];
   assetCategories: AssetCategory[];
 }
@@ -163,7 +163,7 @@ function parsePnL(pnlStr: string): { value: number; isPositive: boolean } {
   };
 }
 
-// Skeleton Components
+// Skeleton Components (kept as in your original)
 function UserInfoCardSkeleton() {
   return (
     <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 mb-8 animate-pulse">
@@ -183,7 +183,6 @@ function UserInfoCardSkeleton() {
     </div>
   );
 }
-
 function SummaryCardSkeleton() {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 animate-pulse">
@@ -192,7 +191,6 @@ function SummaryCardSkeleton() {
     </div>
   );
 }
-
 function ChartSectionSkeleton() {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8 animate-pulse">
@@ -211,7 +209,6 @@ function ChartSectionSkeleton() {
     </div>
   );
 }
-
 function AssetSectionSkeleton() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -245,7 +242,6 @@ function AssetSectionSkeleton() {
     </div>
   );
 }
-
 function TransactionTableSkeleton() {
   return (
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-8 animate-pulse">

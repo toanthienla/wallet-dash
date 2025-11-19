@@ -68,7 +68,7 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
-        {/* Minimal header as requested (removed Daily/Weekly/Monthly, date range and averages) */}
+        {/* Minimal header as requested */}
       </div>
 
       <div className="h-80">
@@ -106,45 +106,6 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
           </div>
         )}
       </div>
-
-      {/* Show all raw data points in a scrollable table below the chart */}
-      {chartData && chartData.length > 0 && (
-        <div className="mt-4">
-          <div className="max-h-64 overflow-auto border border-gray-100 rounded-lg">
-            <table className="min-w-full text-sm text-left text-gray-700">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="px-4 py-2 text-xs text-gray-500">#</th>
-                  <th className="px-4 py-2 text-xs text-gray-500">Date / Time</th>
-                  <th className="px-4 py-2 text-xs text-gray-500 text-right">Balance (USD)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chartData.map((d, i) => (
-                  <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                    <td className="px-4 py-2 align-top text-xs text-gray-600">{i + 1}</td>
-                    <td className="px-4 py-2 align-top text-xs text-gray-800">
-                      {(() => {
-                        try {
-                          return new Date(d.date).toLocaleString();
-                        } catch {
-                          return d.date;
-                        }
-                      })()}
-                    </td>
-                    <td className="px-4 py-2 align-top text-xs text-right font-mono text-gray-900">
-                      ${Number(d.balance).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 6,
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
