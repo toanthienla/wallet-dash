@@ -88,6 +88,7 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
                 tickFormatter={(v) =>
                   `$${Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`
                 }
+                tick={{ fontSize: 12 }}
               />
               <Tooltip formatter={tooltipValueFormatter} labelFormatter={tooltipLabelFormatter} />
               <Line
