@@ -386,7 +386,7 @@ export default function WalletDetailPage() {
         const itemsPerPage = paginatedInfo.limit || pageSize;
         const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
-        // ✅ FIX: Properly determine hasPrev based on currentPage
+        // Properly determine hasPrev based on currentPage
         const hasPrev = currentPage > 1;
         const hasNext = paginatedInfo.has_next || false;
 
@@ -416,7 +416,7 @@ export default function WalletDetailPage() {
           date: new Date(tx.date_created).toLocaleString(),
           id: tx.id?.toString() ?? "-",
           type: tx.transaction_type?.name ?? "-",
-          amount: `${tx.amount} ${tx.currency_slug.toUpperCase()}`,
+          amount: `${tx.amount} ${tx.currency_slug?.toUpperCase() ?? ""}`,
           asset: tx.currency_data?.asset_type ?? "-",
           assetType: tx.currency_data?.asset_type ?? "-",
           address: tx.from_address || tx.to_address || "-",
@@ -435,7 +435,7 @@ export default function WalletDetailPage() {
     fetchTransactions();
   }, [walletAddress, currentPage, pageSize]);
 
-  // ✅ Fetch Chart Data
+  // ✅ Fetch Chart Data - preserve ISO labels and pass them to the chart component
   useEffect(() => {
     if (!walletAddress) return;
 
@@ -445,17 +445,23 @@ export default function WalletDetailPage() {
           `${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`
         );
 
-        if (res.data.labels && res.data.data[0]?.values) {
-          const chartData = res.data.labels.map((label: string, i: number) => ({
-            date: new Date(label).toLocaleDateString(),
-            balance: res.data.data[0].values[i],
+        const labels: string[] = res.data?.labels || [];
+        const values: number[] = res.data?.data?.[0]?.values || [];
+
+        if (labels.length && values.length) {
+          // Build chart data preserving the original ISO timestamp string so the chart can format times/dates
+          const chartData = labels.map((label: string, i: number) => ({
+            date: label, // KEEP ISO string, formatting handled in the chart component
+            balance: Number(values[i] ?? 0),
           }));
+
           setWallet((prev) => (prev ? { ...prev, chartData } : null));
         } else {
           setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
         }
       } catch (err) {
         console.error("Error fetching chart data:", err);
+        setWallet((prev) => (prev ? { ...prev, chartData: [] } : null));
       }
     };
 
@@ -715,9 +721,12 @@ export default function WalletDetailPage() {
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.currentTarget.style.display = "none";
-                                    e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-semibold text-gray-600">${balance.currency.name
-                                      .slice(0, 2)
-                                      .toUpperCase()}</span>`;
+                                    const parent = e.currentTarget.parentElement;
+                                    if (parent) {
+                                      parent.innerHTML = `<span class="text-xs font-semibold text-gray-600">${balance.currency.name
+                                        .slice(0, 2)
+                                        .toUpperCase()}</span>`;
+                                    }
                                   }}
                                 />
                               ) : (
@@ -947,8 +956,7 @@ export default function WalletDetailPage() {
               {paginationMeta.totalPages > 1 && (
                 <div className="mt-4 flex flex-wrap gap-2 items-center justify-center">
                   {Array.from({ length: Math.min(paginationMeta.totalPages, 5) }, (_, i) => {
-                    const pageNum =
-                      currentPage <= 3 ? i + 1 : currentPage - 2 + i;
+                    const pageNum = currentPage <= 3 ? i + 1 : currentPage - 2 + i;
                     if (pageNum > paginationMeta.totalPages) return null;
                     return (
                       <button
