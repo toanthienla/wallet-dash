@@ -240,29 +240,7 @@ export default function MoneyFlowChart() {
         )}
       </div>
 
-      {/* Data Summary (Optional) */}
-      {chartData.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <p className="text-xs text-gray-500">Min Value</p>
-            <p className="text-sm font-semibold text-gray-900">
-              ${Math.min(...chartData.map((d) => d.value)).toFixed(2)}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500">Max Value</p>
-            <p className="text-sm font-semibold text-gray-900">
-              ${Math.max(...chartData.map((d) => d.value)).toFixed(2)}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500">Average Value</p>
-            <p className="text-sm font-semibold text-gray-900">
-              ${(chartData.reduce((a, b) => a + b.value, 0) / chartData.length).toFixed(2)}
-            </p>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
