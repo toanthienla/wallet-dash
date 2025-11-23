@@ -7,8 +7,8 @@ import { API_URL } from "@/utils/constants";
 import axiosClient from "@/utils/axiosClient";
 
 interface Wallet {
-  name: string;
-  slug: string;
+  name?: string;
+  slug?: string;
   current_balance: number;
   last_updated: string;
   status: string;
@@ -91,10 +91,12 @@ export default function SystemWalletPage() {
 
       console.log("✅ Wallet Data Response:", res.data);
 
-      // Handle both direct data and nested data structure
-      const apiData = res.data?.data || res.data;
+      // Extract data from nested structure
+      if (res.data?.success && res.data?.data) {
+        return res.data.data;
+      }
 
-      return apiData;
+      return null;
     } catch (error: any) {
       console.error("❌ Fetch system wallets failed:", error);
       setError(error.message || "Failed to fetch wallet data");
