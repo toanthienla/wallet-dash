@@ -10,7 +10,7 @@ import {
 } from "recharts"
 import { RefreshCw } from "lucide-react"
 import { API_URL } from "@/utils/constants"
-import axiosClient from "@/utils/axiosClient";
+import axiosClient from "@/utils/axiosClient"
 
 export default function MoneyFlowChart() {
   const tabs = ["24H", "7 Days", "30 Days", "365 Days"]
@@ -19,13 +19,53 @@ export default function MoneyFlowChart() {
   const [chartData, setChartData] = useState<{ time: string; value: number }[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
+
+  // Calculate date range based on selected tab
+  const getDateRange = (tabName: string) => {
+    const end = new Date()
+    const start = new Date()
+
+    switch (tabName) {
+      case "24H":
+        start.setHours(start.getHours() - 24)
+        break
+      case "7 Days":
+        start.setDate(start.getDate() - 7)
+        break
+      case "30 Days":
+        start.setDate(start.getDate() - 30)
+        break
+      case "365 Days":
+        start.setFullYear(start.getFullYear() - 1)
+        break
+      default:
+        break
+    }
+
+    return {
+      from: start.toISOString().split("T")[0],
+      to: end.toISOString().split("T")[0],
+    }
+  }
 
   const fetchExternalWalletData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const url = `${API_URL}/wallets/dashboard/external-wallet-total-assets`
+      let url = `${API_URL}/wallets/dashboard/external-wallet-total-assets`
+
+      // Build query params
+      const params = new URLSearchParams()
+      if (fromDate) params.append("from_date", fromDate)
+      if (toDate) params.append("to_date", toDate)
+
+      if (params.toString()) {
+        url += `?${params.toString()}`
+      }
+
       console.log("📡 Fetching external wallet data from:", url)
 
       const res = await axiosClient.get(url)
@@ -59,10 +99,24 @@ export default function MoneyFlowChart() {
     }
   }
 
-  // 🪄 Fetch khi component mount hoặc refresh
+  // Fetch when component mounts or refresh button is clicked
   useEffect(() => {
     fetchExternalWalletData()
-  }, [seed])
+  }, [seed, fromDate, toDate])
+
+  // Initialize dates on component mount
+  useEffect(() => {
+    const { from, to } = getDateRange("24H")
+    setFromDate(from)
+    setToDate(to)
+  }, [])
+
+  const handleTabChange = (tab: string) => {
+    setActive(tab)
+    const { from, to } = getDateRange(tab)
+    setFromDate(from)
+    setToDate(to)
+  }
 
   const data = useMemo(() => chartData, [chartData])
 
@@ -79,7 +133,7 @@ export default function MoneyFlowChart() {
             {tabs.map((t) => (
               <button
                 key={t}
-                onClick={() => setActive(t)}
+                onClick={() => handleTabChange(t)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${active === t
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-gray-600 hover:bg-gray-100"
@@ -92,7 +146,7 @@ export default function MoneyFlowChart() {
           <button
             onClick={() => setSeed((s) => s + 1)}
             disabled={loading}
-            className="flex items-center space-x-1 text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-md text-xs font-medium"
+            className="flex items-center space-x-1 text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-md text-xs font-medium disabled:opacity-50"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             <span>{loading ? "Loading..." : "Refresh"}</span>
@@ -100,11 +154,44 @@ export default function MoneyFlowChart() {
         </div>
       </div>
 
+      {/* Date Range Filters */}
+      <div className="flex items-center space-x-4 mb-4 pb-4 border-b border-gray-200">
+        <div className="flex items-center space-x-2">
+          <label className="text-xs font-medium text-gray-700 whitespace-nowrap">From:</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <label className="text-xs font-medium text-gray-700 whitespace-nowrap">To:</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <button
+          onClick={() => setSeed((s) => s + 1)}
+          disabled={loading}
+          className="ml-auto px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:bg-gray-400 transition"
+        >
+          Apply Filter
+        </button>
+      </div>
+
       {/* Chart */}
       <div className="h-72">
         {error ? (
           <div className="flex items-center justify-center h-full text-red-500 text-sm">
-            {error}
+            ❌ {error}
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            No data available
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -135,6 +222,7 @@ export default function MoneyFlowChart() {
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
+                formatter={(value: number) => [`$${value.toFixed(2)}`, "Total Assets"]}
               />
               <Area
                 type="monotone"
@@ -151,6 +239,30 @@ export default function MoneyFlowChart() {
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* Data Summary (Optional) */}
+      {chartData.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <p className="text-xs text-gray-500">Min Value</p>
+            <p className="text-sm font-semibold text-gray-900">
+              ${Math.min(...chartData.map((d) => d.value)).toFixed(2)}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-500">Max Value</p>
+            <p className="text-sm font-semibold text-gray-900">
+              ${Math.max(...chartData.map((d) => d.value)).toFixed(2)}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-500">Average Value</p>
+            <p className="text-sm font-semibold text-gray-900">
+              ${(chartData.reduce((a, b) => a + b.value, 0) / chartData.length).toFixed(2)}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
