@@ -6,7 +6,46 @@ import axiosClient from "@/utils/axiosClient";
 
 import MetricCard from "@/components/transaction-queue/MetricCard";
 import TransactionQueueTable from "@/components/transaction-queue/TransactionQueueTable";
-import { Search } from "lucide-react";
+
+interface TotalStats {
+  pending: number;
+  processing: number;
+  completed: number;
+  cancelled: number;
+}
+
+interface RoutingKey {
+  pending: number;
+  processing: number;
+  completed: number;
+  cancelled: number;
+}
+
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    messages: any[];
+    total_statistic: {
+      routingKeys: Record<string, RoutingKey>;
+      totalStats: TotalStats;
+    };
+    paginated: {
+      keyword: string;
+      page: number;
+      take: number;
+      sort: string;
+      sorted: string;
+      from_date: string;
+      to_date: string;
+      number_records: number;
+      pages: number;
+      has_prev: boolean;
+      has_next: boolean;
+    };
+  };
+  timestamp: string;
+}
 
 // Skeleton loader for metric card
 function MetricCardSkeleton() {
@@ -25,15 +64,16 @@ function MetricCardSkeleton() {
 }
 
 export default function TransactionQueuePage() {
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<TotalStats>({
     pending: 0,
     processing: 0,
     completed: 0,
     cancelled: 0,
   });
 
-  const [routingKeys, setRoutingKeys] = useState<any>({});
+  const [routingKeys, setRoutingKeys] = useState<Record<string, RoutingKey>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,23 +82,27 @@ export default function TransactionQueuePage() {
         console.log("📡 Fetching transaction queue data from:", url);
 
         // axios call
-        const res = await axiosClient.get(url);
+        const res = await axiosClient.get<ApiResponse>(url);
 
-        console.log("Transaction Queue Data:", res.data);
+        console.log("✅ Transaction Queue Data:", res.data);
 
-        const total = res.data?.data?.total_statistic?.totalStats || {};
-        const routing = res.data?.data?.total_statistic?.routingKeys || {};
+        const totalStats = res.data?.data?.total_statistic?.totalStats || {};
+        const routingKeysData =
+          res.data?.data?.total_statistic?.routingKeys || {};
 
         setStats({
-          pending: total.pending ?? 0,
-          processing: total.processing ?? 0,
-          completed: total.completed ?? 0,
-          cancelled: total.cancelled ?? 0,
+          pending: totalStats.pending ?? 0,
+          processing: totalStats.processing ?? 0,
+          completed: totalStats.completed ?? 0,
+          cancelled: totalStats.cancelled ?? 0,
         });
 
-        setRoutingKeys(routing);
+        setRoutingKeys(routingKeysData);
       } catch (err: any) {
-        console.error(" Error fetching transaction queue data:", err);
+        console.error("❌ Error fetching transaction queue data:", err);
+        setError(
+          err.response?.data?.message || "Failed to fetch transaction data"
+        );
       } finally {
         setLoading(false);
       }
@@ -81,16 +125,39 @@ export default function TransactionQueuePage() {
             </>
           ) : (
             <>
-              <MetricCard title="Pending" value={stats.pending.toString()} iconSrc="/images/icons/TotalW.svg" />
-              <MetricCard title="Processing" value={stats.processing.toString()} iconSrc="/images/icons/Critical.svg" />
-              <MetricCard title="Completed" value={stats.completed.toString()} iconSrc="/images/icons/Critical.svg" />
-              <MetricCard title="Cancelled" value={stats.cancelled.toString()} iconSrc="/images/icons/Last.svg" />
+              <MetricCard
+                title="Pending"
+                value={stats.pending.toString()}
+                iconSrc="/images/icons/TotalW.svg"
+              />
+              <MetricCard
+                title="Processing"
+                value={stats.processing.toString()}
+                iconSrc="/images/icons/Critical.svg"
+              />
+              <MetricCard
+                title="Completed"
+                value={stats.completed.toString()}
+                iconSrc="/images/icons/Critical.svg"
+              />
+              <MetricCard
+                title="Cancelled"
+                value={stats.cancelled.toString()}
+                iconSrc="/images/icons/Last.svg"
+              />
             </>
           )}
         </div>
 
+        {/* === Error Message === */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* === Data Table === */}
-        <TransactionQueueTable loading={loading} />
+        <TransactionQueueTable loading={loading} routingKeysData={routingKeys} />
       </div>
     </main>
   );
