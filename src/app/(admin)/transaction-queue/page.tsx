@@ -91,7 +91,7 @@ export default function TransactionQueuePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const url = `${API_URL}/transaction/dashboard/queues`;
+        const url = `${API_URL}/transaction/dashboard/queues?page=1&take=10`;
         console.log("📡 Fetching transaction queue data from:", url);
 
         const res = await axiosClient.get<ApiResponse>(url);
