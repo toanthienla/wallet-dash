@@ -18,23 +18,6 @@ type TransactionItem = {
   cancelled: number;
 };
 
-function TypeTag({ type }: { type: string }) {
-  const styles: Record<string, string> = {
-    pending: "bg-yellow-50 text-yellow-600",
-    processing: "bg-blue-50 text-blue-600",
-    completed: "bg-green-50 text-green-600",
-    cancelled: "bg-red-50 text-red-500",
-  };
-  return (
-    <span
-      className={`px-3 py-1 rounded-full text-sm font-medium ${styles[type] || "bg-gray-100 text-gray-700"
-        }`}
-    >
-      {type.charAt(0).toUpperCase() + type.slice(1)}
-    </span>
-  );
-}
-
 function StatusPill({ status }: { status: number }) {
   return (
     <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
@@ -49,9 +32,6 @@ function TableRowSkeleton() {
     <tr className="border-b animate-pulse">
       <td className="py-4 pr-6">
         <div className="h-4 bg-gray-200 rounded w-48"></div>
-      </td>
-      <td className="py-4 pr-6">
-        <div className="h-6 bg-gray-200 rounded-full w-16"></div>
       </td>
       <td className="py-4 pr-6">
         <div className="h-4 bg-gray-200 rounded w-12"></div>
@@ -169,7 +149,6 @@ export default function TransactionQueueTable({
           <thead>
             <tr className="text-gray-500 border-b">
               <th className="py-3 pr-6 font-medium">Routing Key</th>
-              <th className="py-3 pr-6 font-medium">Type</th>
               <th className="py-3 pr-6 font-medium">Pending</th>
               <th className="py-3 pr-6 font-medium">Processing</th>
               <th className="py-3 pr-6 font-medium">Completed</th>
@@ -186,7 +165,7 @@ export default function TransactionQueueTable({
               </>
             ) : visible.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-500">
+                <td colSpan={6} className="text-center py-12 text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <svg
                       className="h-12 w-12 text-gray-400 mb-3"
@@ -214,9 +193,6 @@ export default function TransactionQueueTable({
                     {tx.routingKey.length > 50
                       ? `${tx.routingKey.slice(0, 50)}...`
                       : tx.routingKey}
-                  </td>
-                  <td className="py-4 pr-6">
-                    <TypeTag type="queue" />
                   </td>
                   <td className="py-4 pr-6">
                     <StatusPill status={tx.pending} />
