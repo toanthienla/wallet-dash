@@ -166,20 +166,20 @@ export default function SystemWalletTable({
             ) : (
               filteredWallets.map((r, idx) => (
                 <tr key={idx} className="border-b hover:bg-gray-50">
-                  <td className="py-4 pr-6 font-medium">{r.name}</td>
+                  <td className="py-4 pr-6 font-medium">{r.name || "-"}</td>
                   <td className="py-4 pr-6 text-gray-500 break-all font-mono text-xs">
-                    {r.slug.length > 40
+                    {r.slug && r.slug.length > 40
                       ? `${r.slug.slice(0, 40)}...`
-                      : r.slug}
+                      : r.slug || "-"}
                   </td>
                   <td className="py-4 pr-6 font-semibold">
-                    {r.current_balance.toFixed(4)}
+                    {r.current_balance?.toFixed(4) || "0.0000"}
                   </td>
                   <td className="py-4 pr-6 text-gray-500 text-xs">
-                    {new Date(r.last_updated).toLocaleString()}
+                    {r.last_updated ? new Date(r.last_updated).toLocaleString() : "-"}
                   </td>
                   <td className="py-4 pr-6">
-                    <StatusPill status={r.status} />
+                    <StatusPill status={r.status || "NORMAL"} />
                   </td>
                   <td className="py-4 pr-6">
                     <button className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-700 transition">
