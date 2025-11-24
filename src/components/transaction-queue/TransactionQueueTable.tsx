@@ -3,25 +3,39 @@ import React, { useState, useEffect } from "react";
 import axiosClient from "@/utils/axiosClient";
 import { API_URL } from "@/utils/constants";
 
-type RoutingKey = {
-  pending: number;
-  processing: number;
-  completed: number;
-  cancelled: number;
+type Message = {
+  msg_id: string;
+  msg_started_at: string;
+  msg_status: "pending" | "processing" | "completed" | "cancelled";
+  id: number;
+  date_created: string;
+  transaction_type: string;
+  amount: number;
+  amount_assets: string;
+  currency_data: {
+    id: number;
+    name: string;
+    slug: string;
+    full_name: string;
+    usd_rate: string;
+    link: string;
+  };
+  asset_type: string;
 };
 
-type TransactionItem = {
-  routingKey: string;
-  pending: number;
-  processing: number;
-  completed: number;
-  cancelled: number;
-};
+function StatusPill({ status }: { status: string }) {
+  const statusColors: Record<string, { bg: string; text: string }> = {
+    pending: { bg: "bg-yellow-50", text: "text-yellow-700" },
+    processing: { bg: "bg-blue-50", text: "text-blue-700" },
+    completed: { bg: "bg-green-50", text: "text-green-700" },
+    cancelled: { bg: "bg-red-50", text: "text-red-700" },
+  };
 
-function StatusPill({ status }: { status: number }) {
+  const colors = statusColors[status] || statusColors.pending;
+
   return (
-    <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
-      {status}
+    <span className={`px-3 py-1 rounded-full text-sm font-medium ${colors.bg} ${colors.text}`}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
 }
@@ -31,25 +45,22 @@ function TableRowSkeleton() {
   return (
     <tr className="border-b animate-pulse">
       <td className="py-4 pr-6">
-        <div className="h-4 bg-gray-200 rounded w-48"></div>
+        <div className="h-4 bg-gray-200 rounded w-32"></div>
       </td>
       <td className="py-4 pr-6">
-        <div className="h-4 bg-gray-200 rounded w-12"></div>
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
       </td>
       <td className="py-4 pr-6">
-        <div className="h-4 bg-gray-200 rounded w-12"></div>
+        <div className="h-4 bg-gray-200 rounded w-20"></div>
       </td>
       <td className="py-4 pr-6">
-        <div className="h-4 bg-gray-200 rounded w-12"></div>
+        <div className="h-4 bg-gray-200 rounded w-28"></div>
       </td>
       <td className="py-4 pr-6">
-        <div className="h-4 bg-gray-200 rounded w-12"></div>
+        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
       </td>
       <td className="py-4 pr-6">
-        <div className="flex gap-2">
-          <div className="h-8 bg-gray-200 rounded-full w-24"></div>
-          <div className="h-8 bg-gray-200 rounded-full w-20"></div>
-        </div>
+        <div className="h-8 bg-gray-200 rounded-full w-16"></div>
       </td>
     </tr>
   );
@@ -57,35 +68,37 @@ function TableRowSkeleton() {
 
 interface TransactionQueueTableProps {
   loading?: boolean;
-  routingKeysData?: Record<string, RoutingKey>;
+  messagesData?: Message[];
 }
 
 export default function TransactionQueueTable({
   loading = false,
-  routingKeysData = {},
+  messagesData = [],
 }: TransactionQueueTableProps) {
   const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
   const perPage = 10;
 
-  // Convert routing keys object to array
-  const transactions: TransactionItem[] = Object.entries(
-    routingKeysData
-  ).map(([key, stats]) => ({
-    routingKey: key,
-    pending: stats.pending || 0,
-    processing: stats.processing || 0,
-    completed: stats.completed || 0,
-    cancelled: stats.cancelled || 0,
-  }));
+  // Filter messages based on search term
+  const filteredMessages = messagesData.filter(
+    (msg) =>
+      msg.msg_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      msg.transaction_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      msg.amount_assets.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const pages = Math.max(1, Math.ceil(transactions.length / perPage));
-  const visible = transactions.slice((page - 1) * perPage, page * perPage);
+  const pages = Math.max(1, Math.ceil(filteredMessages.length / perPage));
+  const visible = filteredMessages.slice((page - 1) * perPage, page * perPage);
 
   useEffect(() => {
     if (page > pages) {
       setPage(1);
     }
-  }, [pages]);
+  }, [pages, page]);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
@@ -96,7 +109,7 @@ export default function TransactionQueueTable({
             Action Transaction Queue
           </h3>
           <p className="text-sm text-gray-400">
-            Real-time view of transaction routing keys and their status
+            Real-time view of transaction messages and their status
           </p>
         </div>
 
@@ -104,7 +117,12 @@ export default function TransactionQueueTable({
           <div className="relative">
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search by ID, type, or amount..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
               disabled={loading}
               className="pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg w-64 focus:outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
@@ -122,25 +140,6 @@ export default function TransactionQueueTable({
               />
             </svg>
           </div>
-          <button
-            disabled={loading}
-            className="flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 7V3m8 4V3m-9 8h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            <span>05 Feb - 06 March</span>
-          </button>
         </div>
       </div>
 
@@ -148,11 +147,11 @@ export default function TransactionQueueTable({
         <table className="min-w-full text-left text-sm">
           <thead>
             <tr className="text-gray-500 border-b">
-              <th className="py-3 pr-6 font-medium">Routing Key</th>
-              <th className="py-3 pr-6 font-medium">Pending</th>
-              <th className="py-3 pr-6 font-medium">Processing</th>
-              <th className="py-3 pr-6 font-medium">Completed</th>
-              <th className="py-3 pr-6 font-medium">Cancelled</th>
+              <th className="py-3 pr-6 font-medium">Message ID</th>
+              <th className="py-3 pr-6 font-medium">Transaction Type</th>
+              <th className="py-3 pr-6 font-medium">Amount</th>
+              <th className="py-3 pr-6 font-medium">Created At</th>
+              <th className="py-3 pr-6 font-medium">Status</th>
               <th className="py-3 pr-6 font-medium">Action</th>
             </tr>
           </thead>
@@ -181,30 +180,30 @@ export default function TransactionQueueTable({
                       />
                     </svg>
                     <p className="text-sm font-medium text-gray-900">
-                      No routing keys found
+                      No transactions found
                     </p>
                   </div>
                 </td>
               </tr>
             ) : (
-              visible.map((tx, i) => (
+              visible.map((msg, i) => (
                 <tr key={i} className="border-b hover:bg-gray-50 transition-colors">
-                  <td className="py-4 pr-6 font-mono text-xs">
-                    {tx.routingKey.length > 50
-                      ? `${tx.routingKey.slice(0, 50)}...`
-                      : tx.routingKey}
+                  <td className="py-4 pr-6 font-mono text-xs text-gray-600">
+                    {msg.msg_id.length > 32
+                      ? `${msg.msg_id.slice(0, 32)}...`
+                      : msg.msg_id}
+                  </td>
+                  <td className="py-4 pr-6 text-gray-700">
+                    {msg.transaction_type}
+                  </td>
+                  <td className="py-4 pr-6 font-semibold text-gray-900">
+                    {msg.amount_assets}
+                  </td>
+                  <td className="py-4 pr-6 text-xs text-gray-600">
+                    {formatDate(msg.date_created)}
                   </td>
                   <td className="py-4 pr-6">
-                    <StatusPill status={tx.pending} />
-                  </td>
-                  <td className="py-4 pr-6">
-                    <StatusPill status={tx.processing} />
-                  </td>
-                  <td className="py-4 pr-6">
-                    <StatusPill status={tx.completed} />
-                  </td>
-                  <td className="py-4 pr-6">
-                    <StatusPill status={tx.cancelled} />
+                    <StatusPill status={msg.msg_status} />
                   </td>
                   <td className="py-4 pr-6 flex items-center gap-2">
                     <button className="bg-[#2563EB] hover:bg-[#1E4FDB] text-white px-4 py-2 rounded-full text-sm transition-all">

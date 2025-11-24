@@ -7,14 +7,27 @@ import axiosClient from "@/utils/axiosClient";
 import MetricCard from "@/components/transaction-queue/MetricCard";
 import TransactionQueueTable from "@/components/transaction-queue/TransactionQueueTable";
 
-interface TotalStats {
-  pending: number;
-  processing: number;
-  completed: number;
-  cancelled: number;
-}
+type Message = {
+  msg_id: string;
+  msg_started_at: string;
+  msg_status: "pending" | "processing" | "completed" | "cancelled";
+  id: number;
+  date_created: string;
+  transaction_type: string;
+  amount: number;
+  amount_assets: string;
+  currency_data: {
+    id: number;
+    name: string;
+    slug: string;
+    full_name: string;
+    usd_rate: string;
+    link: string;
+  };
+  asset_type: string;
+};
 
-interface RoutingKey {
+interface TotalStats {
   pending: number;
   processing: number;
   completed: number;
@@ -25,9 +38,9 @@ interface ApiResponse {
   success: boolean;
   message: string;
   data: {
-    messages: any[];
+    messages: Message[];
     total_statistic: {
-      routingKeys: Record<string, RoutingKey>;
+      routingKeys: Record<string, any>;
       totalStats: TotalStats;
     };
     paginated: {
@@ -71,7 +84,7 @@ export default function TransactionQueuePage() {
     cancelled: 0,
   });
 
-  const [routingKeys, setRoutingKeys] = useState<Record<string, RoutingKey>>({});
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,23 +94,29 @@ export default function TransactionQueuePage() {
         const url = `${API_URL}/transaction/dashboard/queues`;
         console.log("📡 Fetching transaction queue data from:", url);
 
-        // axios call
         const res = await axiosClient.get<ApiResponse>(url);
 
         console.log("✅ Transaction Queue Data:", res.data);
 
+        const messagesData = res.data?.data?.messages || [];
         const totalStats = res.data?.data?.total_statistic?.totalStats || {};
-        const routingKeysData =
-          res.data?.data?.total_statistic?.routingKeys || {};
 
-        setStats({
-          pending: totalStats.pending ?? 0,
-          processing: totalStats.processing ?? 0,
-          completed: totalStats.completed ?? 0,
-          cancelled: totalStats.cancelled ?? 0,
-        });
+        // Calculate stats from messages
+        const calculatedStats = {
+          pending: messagesData.filter((m) => m.msg_status === "pending").length,
+          processing: messagesData.filter(
+            (m) => m.msg_status === "processing"
+          ).length,
+          completed: messagesData.filter(
+            (m) => m.msg_status === "completed"
+          ).length,
+          cancelled: messagesData.filter(
+            (m) => m.msg_status === "cancelled"
+          ).length,
+        };
 
-        setRoutingKeys(routingKeysData);
+        setMessages(messagesData);
+        setStats(calculatedStats);
       } catch (err: any) {
         console.error("❌ Error fetching transaction queue data:", err);
         setError(
@@ -157,7 +176,7 @@ export default function TransactionQueuePage() {
         )}
 
         {/* === Data Table === */}
-        <TransactionQueueTable loading={loading} routingKeysData={routingKeys} />
+        <TransactionQueueTable loading={loading} messagesData={messages} />
       </div>
     </main>
   );
