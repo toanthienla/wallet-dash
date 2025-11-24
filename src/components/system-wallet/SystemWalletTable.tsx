@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
+import StatusPill from "./StatusPill";
 
 type Wallet = {
   name: string;
@@ -27,32 +28,28 @@ interface Props {
   loading?: boolean;
 }
 
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    NORMAL: "bg-[#E0F2FE] text-blue-700",
-    WARNING: "bg-[#FEF3C7] text-yellow-700",
-    ERROR: "bg-[#FFEDD5] text-orange-600",
-  };
-  return (
-    <span
-      className={`px-3 py-1 rounded-full text-sm font-medium ${map[status] || "bg-gray-100 text-gray-700"
-        }`}
-    >
-      {status}
-    </span>
-  );
-}
-
 // Table Row Skeleton
 function TableRowSkeleton() {
   return (
     <tr className="border-b animate-pulse">
-      <td className="py-4 pr-6"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
-      <td className="py-4 pr-6"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
-      <td className="py-4 pr-6"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
-      <td className="py-4 pr-6"><div className="h-4 bg-gray-200 rounded w-28"></div></td>
-      <td className="py-4 pr-6"><div className="h-6 bg-gray-200 rounded-full w-20"></div></td>
-      <td className="py-4 pr-6"><div className="h-8 bg-gray-200 rounded w-24"></div></td>
+      <td className="py-4 pr-6">
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+      </td>
+      <td className="py-4 pr-6">
+        <div className="h-4 bg-gray-200 rounded w-32"></div>
+      </td>
+      <td className="py-4 pr-6">
+        <div className="h-4 bg-gray-200 rounded w-20"></div>
+      </td>
+      <td className="py-4 pr-6">
+        <div className="h-4 bg-gray-200 rounded w-28"></div>
+      </td>
+      <td className="py-4 pr-6">
+        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+      </td>
+      <td className="py-4 pr-6">
+        <div className="h-8 bg-gray-200 rounded w-24"></div>
+      </td>
     </tr>
   );
 }
@@ -78,6 +75,11 @@ export default function SystemWalletTable({
     }
   };
 
+  const filteredWallets = wallets.filter((wallet) =>
+    wallet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    wallet.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
       {/* Header */}
@@ -100,7 +102,7 @@ export default function SystemWalletTable({
             />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search wallets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg w-52 focus:outline-none focus:ring-1 focus:ring-blue-400"
@@ -140,23 +142,35 @@ export default function SystemWalletTable({
                   <TableRowSkeleton key={`skeleton-${i}`} />
                 ))}
               </>
-            ) : wallets.length === 0 ? (
+            ) : filteredWallets.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center py-8 text-gray-500">
                   <div className="flex flex-col items-center justify-center">
-                    <svg className="h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                    <svg
+                      className="h-12 w-12 text-gray-400 mb-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                      />
                     </svg>
                     No wallets found
                   </div>
                 </td>
               </tr>
             ) : (
-              wallets.map((r, idx) => (
+              filteredWallets.map((r, idx) => (
                 <tr key={idx} className="border-b hover:bg-gray-50">
                   <td className="py-4 pr-6 font-medium">{r.name}</td>
                   <td className="py-4 pr-6 text-gray-500 break-all font-mono text-xs">
-                    {r.slug.length > 40 ? `${r.slug.slice(0, 40)}...` : r.slug}
+                    {r.slug.length > 40
+                      ? `${r.slug.slice(0, 40)}...`
+                      : r.slug}
                   </td>
                   <td className="py-4 pr-6 font-semibold">
                     {r.current_balance.toFixed(4)}
@@ -182,14 +196,17 @@ export default function SystemWalletTable({
       {/* Pagination Info */}
       <div className="flex items-center justify-between mt-6">
         <div className="text-sm text-gray-600">
-          Page {pagination.page} of {pagination.pages} • Showing {wallets.length} of {pagination.number_records} records
+          Page {pagination.page} of {pagination.pages} • Showing{" "}
+          {filteredWallets.length} of {pagination.number_records} records
         </div>
 
         {/* Pagination Controls */}
         <div className="flex items-center space-x-3">
           {/* Previous */}
           <button
-            onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
+            onClick={() =>
+              handlePageChange(Math.max(1, pagination.page - 1))
+            }
             disabled={!pagination.has_prev || loading}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm border transition ${!pagination.has_prev || loading
               ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"
@@ -222,38 +239,40 @@ export default function SystemWalletTable({
             )}
 
             {/* Middle pages */}
-            {Array.from({ length: Math.min(5, pagination.pages) }).map((_, i) => {
-              let pageNum: number;
-              if (pagination.pages <= 5) {
-                pageNum = i + 1;
-              } else if (pagination.page <= 3) {
-                pageNum = i + 1;
-              } else if (pagination.page >= pagination.pages - 2) {
-                pageNum = pagination.pages - 4 + i;
-              } else {
-                pageNum = pagination.page - 2 + i;
-              }
+            {Array.from({ length: Math.min(5, pagination.pages) }).map(
+              (_, i) => {
+                let pageNum: number;
+                if (pagination.pages <= 5) {
+                  pageNum = i + 1;
+                } else if (pagination.page <= 3) {
+                  pageNum = i + 1;
+                } else if (pagination.page >= pagination.pages - 2) {
+                  pageNum = pagination.pages - 4 + i;
+                } else {
+                  pageNum = pagination.page - 2 + i;
+                }
 
-              if (pageNum === 1 || pageNum === pagination.pages) {
-                return null;
-              }
+                if (pageNum === 1 || pageNum === pagination.pages) {
+                  return null;
+                }
 
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => handlePageChange(pageNum)}
-                  disabled={loading}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium transition ${pagination.page === pageNum
-                    ? "bg-blue-600 text-white"
-                    : loading
-                      ? "text-gray-400 bg-gray-50 cursor-not-allowed"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    disabled={loading}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition ${pagination.page === pageNum
+                      ? "bg-blue-600 text-white"
+                      : loading
+                        ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              }
+            )}
 
             {/* Ellipsis if needed */}
             {pagination.page < pagination.pages - 2 && (
@@ -279,7 +298,11 @@ export default function SystemWalletTable({
 
           {/* Next */}
           <button
-            onClick={() => handlePageChange(Math.min(pagination.pages, pagination.page + 1))}
+            onClick={() =>
+              handlePageChange(
+                Math.min(pagination.pages, pagination.page + 1)
+              )
+            }
             disabled={!pagination.has_next || loading}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm border transition ${!pagination.has_next || loading
               ? "text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50"

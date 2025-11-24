@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from "react";
 import MetricCard from "@/components/system-wallet/MetricCard";
 import SystemWalletTable from "@/components/system-wallet/SystemWalletTable";
-import { API_URL } from "@/utils/constants";
-import axiosClient from "@/utils/axiosClient";
 
+// Mock types (replace with your actual API types)
 interface Wallet {
-  name?: string;
-  slug?: string;
+  name: string;
+  slug: string;
   current_balance: number;
   last_updated: string;
   status: string;
@@ -29,6 +28,13 @@ interface WalletData {
   last_updated: string;
   main_wallets: Wallet[];
   paginated: PaginationMeta;
+}
+
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: WalletData;
+  timestamp: string;
 }
 
 // Skeleton Loading Component
@@ -59,7 +65,10 @@ const SkeletonTable = () => (
 
       {/* Table Rows Skeleton */}
       {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="flex gap-4 py-4 border-b last:border-b-0 animate-pulse">
+        <div
+          key={i}
+          className="flex gap-4 py-4 border-b last:border-b-0 animate-pulse"
+        >
           <div className="h-4 bg-gray-200 rounded w-24"></div>
           <div className="h-4 bg-gray-200 rounded w-32"></div>
           <div className="h-4 bg-gray-200 rounded w-28"></div>
@@ -74,9 +83,11 @@ const SkeletonTable = () => (
 export default function SystemWalletPage() {
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [error, setError] = useState<string | null>(null);
   const perPage = 10;
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
   // Fetch API with pagination
   async function fetchSystemWallets(page: number = 1) {
@@ -85,21 +96,32 @@ export default function SystemWalletPage() {
       params.append("page", page.toString());
       params.append("take", perPage.toString());
 
-      const res = await axiosClient.get(
-        `${API_URL}/platform-config/dashboard/main-wallets?${params.toString()}`
+      const res = await fetch(
+        `${API_URL}/platform-config/dashboard/main-wallets?${params.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
 
-      console.log("✅ Wallet Data Response:", res.data);
-
-      // Extract data from nested structure
-      if (res.data?.success && res.data?.data) {
-        return res.data.data;
+      if (!res.ok) {
+        throw new Error(`API error: ${res.statusText}`);
       }
 
-      return null;
-    } catch (error: any) {
-      console.error("❌ Fetch system wallets failed:", error);
-      setError(error.message || "Failed to fetch wallet data");
+      const data: ApiResponse = await res.json();
+
+      if (data.success && data.data) {
+        return data.data;
+      } else {
+        throw new Error(data.message || "Failed to fetch wallet data");
+      }
+    } catch (error) {
+      console.error("Fetch system wallets failed:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load wallets"
+      );
       return null;
     }
   }
@@ -109,22 +131,8 @@ export default function SystemWalletPage() {
       setLoading(true);
       setError(null);
       const data = await fetchSystemWallets(currentPage);
-
       if (data) {
-        setWalletData({
-          total_wallets: data.total_wallets || 0,
-          total_balance: data.total_balance || 0,
-          last_updated: data.last_updated || new Date().toISOString(),
-          main_wallets: Array.isArray(data.main_wallets) ? data.main_wallets : [],
-          paginated: data.paginated || {
-            page: currentPage,
-            pages: 1,
-            take: perPage,
-            number_records: Array.isArray(data.main_wallets) ? data.main_wallets.length : 0,
-            has_next: false,
-            has_prev: false,
-          },
-        });
+        setWalletData(data);
       }
       setLoading(false);
     }
@@ -137,9 +145,13 @@ export default function SystemWalletPage() {
 
   const formatNumber = (num?: number) =>
     typeof num === "number"
-      ? num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      ? num.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
       : "0.00";
 
+  // Loading state
   if (loading && !walletData) {
     return (
       <div className="space-y-6">
@@ -157,6 +169,7 @@ export default function SystemWalletPage() {
     );
   }
 
+  // Error state
   if (error && !walletData) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
@@ -176,14 +189,13 @@ export default function SystemWalletPage() {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">Error Loading Data</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">
+            Error Loading Wallet Data
+          </h3>
           <p className="text-gray-500 mb-4">{error}</p>
           <button
-            onClick={() => {
-              setCurrentPage(1);
-              setError(null);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            onClick={() => handlePageChange(1)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
             Try Again
           </button>
@@ -192,7 +204,8 @@ export default function SystemWalletPage() {
     );
   }
 
-  if (!walletData || !walletData.main_wallets || walletData.main_wallets.length === 0) {
+  // No data state
+  if (!walletData) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
         <div className="text-center">
@@ -211,21 +224,34 @@ export default function SystemWalletPage() {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">No System Wallet Data</h3>
-          <p className="text-gray-500">No wallets available at the moment.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">
+            No System Wallet Data
+          </h3>
+          <p className="text-gray-500">
+            Unable to load system wallet data. Please try again later.
+          </p>
         </div>
       </div>
     );
   }
 
-  const { total_wallets, total_balance, last_updated, main_wallets, paginated } = walletData;
+  const { total_wallets, total_balance, last_updated, main_wallets, paginated } =
+    walletData;
 
   return (
     <div className="space-y-6">
       {/* Metric cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard title="Total Wallet" value={total_wallets} iconSrc="/images/icons/TotalW.svg" />
-        <MetricCard title="Critical Alerts" value={2} iconSrc="/images/icons/Critical.svg" />
+        <MetricCard
+          title="Total Wallet"
+          value={total_wallets}
+          iconSrc="/images/icons/TotalW.svg"
+        />
+        <MetricCard
+          title="Critical Alerts"
+          value={2}
+          iconSrc="/images/icons/Critical.svg"
+        />
         <MetricCard
           title="Total Balance (USD)"
           value={formatNumber(total_balance)}
@@ -240,15 +266,17 @@ export default function SystemWalletPage() {
 
       {/* System Wallet Table with Server-Side Pagination */}
       <SystemWalletTable
-        wallets={main_wallets || []}
-        pagination={paginated || {
-          page: currentPage,
-          pages: 1,
-          take: perPage,
-          number_records: main_wallets?.length || 0,
-          has_next: false,
-          has_prev: false,
-        }}
+        wallets={main_wallets}
+        pagination={
+          paginated || {
+            page: currentPage,
+            pages: 1,
+            take: perPage,
+            number_records: main_wallets.length,
+            has_next: false,
+            has_prev: false,
+          }
+        }
         onPageChange={handlePageChange}
         loading={loading}
       />
