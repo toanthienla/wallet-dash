@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import MetricCard from "@/components/system-wallet/MetricCard";
 import SystemWalletTable from "@/components/system-wallet/SystemWalletTable";
+import axiosClient from "@/utils/axiosClient";
 
-// Mock types (replace with your actual API types)
 interface Wallet {
   name: string;
   slug: string;
@@ -86,42 +86,33 @@ export default function SystemWalletPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const perPage = 10;
-  const API_URL =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
-  // Fetch API with pagination
+  // Fetch API with pagination using axiosClient
   async function fetchSystemWallets(page: number = 1) {
     try {
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("take", perPage.toString());
 
-      const res = await fetch(
-        `${API_URL}/platform-config/dashboard/main-wallets?${params.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+      const res = await axiosClient.get(
+        `${API_URL}/platform-config/dashboard/main-wallets?${params.toString()}`
       );
 
-      if (!res.ok) {
-        throw new Error(`API error: ${res.statusText}`);
-      }
+      const { success, message, data } = res.data;
 
-      const data: ApiResponse = await res.json();
-
-      if (data.success && data.data) {
-        return data.data;
+      if (success && data) {
+        return data;
       } else {
-        throw new Error(data.message || "Failed to fetch wallet data");
+        throw new Error(message || "Failed to fetch wallet data");
       }
     } catch (error) {
       console.error("Fetch system wallets failed:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to load wallets"
-      );
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("Failed to load wallets");
+      }
       return null;
     }
   }
@@ -194,7 +185,7 @@ export default function SystemWalletPage() {
           </h3>
           <p className="text-gray-500 mb-4">{error}</p>
           <button
-            onClick={() => handlePageChange(1)}
+            onClick={() => setCurrentPage(1)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
             Try Again
