@@ -18,6 +18,15 @@ type TransactionItem = {
   cancelled: number;
 };
 
+type PaginationData = {
+  page: number;
+  pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+  number_records: number;
+  take: number;
+};
+
 function StatusPill({ status }: { status: number }) {
   return (
     <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
@@ -58,16 +67,32 @@ function TableRowSkeleton() {
 interface TransactionQueueTableProps {
   loading?: boolean;
   routingKeysData?: Record<string, RoutingKey>;
+  paginationData?: PaginationData;
 }
 
 export default function TransactionQueueTable({
   loading = false,
   routingKeysData = {},
+  paginationData = {
+    page: 1,
+    pages: 1,
+    has_next: false,
+    has_prev: false,
+    number_records: 0,
+    take: 10,
+  },
 }: TransactionQueueTableProps) {
   const [page, setPage] = useState(1);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const perPage = 10;
+
+  // Use pagination data from props
+  const currentPage = paginationData.page || 1;
+  const totalPages = paginationData.pages || 1;
+  const hasNext = paginationData.has_next || false;
+  const hasPrev = paginationData.has_prev || false;
+  const recordCount = paginationData.number_records || 0;
+  const perPage = paginationData.take || 10;
 
   // Convert routing keys object to array
   const transactions: TransactionItem[] = Object.entries(
@@ -80,15 +105,6 @@ export default function TransactionQueueTable({
     cancelled: stats.cancelled || 0,
   }));
 
-  const pages = Math.max(1, Math.ceil(transactions.length / perPage));
-  const visible = transactions.slice((page - 1) * perPage, page * perPage);
-
-  useEffect(() => {
-    if (page > pages) {
-      setPage(1);
-    }
-  }, [pages]);
-
   const handleFilterChange = () => {
     setPage(1);
     const params = new URLSearchParams();
@@ -98,7 +114,7 @@ export default function TransactionQueueTable({
     const queryString = params.toString();
     console.log("Filter applied:", queryString);
     // Call API endpoint with params
-    axiosClient.get(`${API_URL}/transactions?${queryString}`)
+    // axiosClient.get(`${API_URL}/transactions?${queryString}`)
   };
 
   return (
@@ -123,7 +139,6 @@ export default function TransactionQueueTable({
               handleFilterChange();
             }}
             disabled={loading}
-            placeholder="From date"
             className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
           />
           <input
@@ -134,9 +149,27 @@ export default function TransactionQueueTable({
               handleFilterChange();
             }}
             disabled={loading}
-            placeholder="To date"
             className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
           />
+          <button
+            disabled={loading}
+            className="flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            <span>Filter</span>
+          </button>
         </div>
       </div>
 
@@ -159,7 +192,7 @@ export default function TransactionQueueTable({
                   <TableRowSkeleton key={`skeleton-${i}`} />
                 ))}
               </>
-            ) : visible.length === 0 ? (
+            ) : transactions.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center py-12 text-gray-500">
                   <div className="flex flex-col items-center justify-center">
@@ -183,7 +216,7 @@ export default function TransactionQueueTable({
                 </td>
               </tr>
             ) : (
-              visible.map((tx, i) => (
+              transactions.map((tx, i) => (
                 <tr key={i} className="border-b hover:bg-gray-50 transition-colors">
                   <td className="py-4 pr-6 font-mono text-xs">
                     {tx.routingKey.length > 50
@@ -216,45 +249,51 @@ export default function TransactionQueueTable({
 
       {/* Pagination */}
       <div className="flex items-center justify-between mt-6">
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1 || loading}
-          className={`flex items-center px-4 py-2 rounded-full transition ${page === 1 || loading
-            ? "bg-gray-50 text-gray-400 cursor-not-allowed opacity-50"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-        >
-          ← Previous
-        </button>
-
-        <div className="flex items-center space-x-2">
-          {Array.from({ length: pages }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i + 1)}
-              disabled={loading}
-              className={`w-8 h-8 rounded-full text-sm font-medium transition ${page === i + 1
-                ? "bg-[#2563EB] text-white"
-                : loading
-                  ? "bg-gray-50 text-gray-400 cursor-not-allowed"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-            >
-              {i + 1}
-            </button>
-          ))}
+        <div className="text-sm text-gray-500">
+          Showing {recordCount} records on page {currentPage} of {totalPages}
         </div>
 
-        <button
-          onClick={() => setPage((p) => Math.min(pages, p + 1))}
-          disabled={page === pages || loading}
-          className={`flex items-center px-4 py-2 rounded-full transition ${page === pages || loading
-            ? "bg-gray-50 text-gray-400 cursor-not-allowed opacity-50"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-        >
-          Next →
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={!hasPrev || loading}
+            className={`flex items-center px-4 py-2 rounded-full transition ${!hasPrev || loading
+              ? "bg-gray-50 text-gray-400 cursor-not-allowed opacity-50"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+          >
+            ← Previous
+          </button>
+
+          <div className="flex items-center space-x-2">
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i + 1)}
+                disabled={loading}
+                className={`w-8 h-8 rounded-full text-sm font-medium transition ${currentPage === i + 1
+                  ? "bg-[#2563EB] text-white"
+                  : loading
+                    ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={!hasNext || loading}
+            className={`flex items-center px-4 py-2 rounded-full transition ${!hasNext || loading
+              ? "bg-gray-50 text-gray-400 cursor-not-allowed opacity-50"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+          >
+            Next →
+          </button>
+        </div>
       </div>
     </div>
   );
