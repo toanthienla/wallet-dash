@@ -76,8 +76,8 @@ export default function SystemWalletTable({
   };
 
   const filteredWallets = wallets.filter((wallet) =>
-    wallet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    wallet.slug.toLowerCase().includes(searchQuery.toLowerCase())
+    (wallet.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+    (wallet.slug?.toLowerCase() || "").includes(searchQuery.toLowerCase())
   );
 
   return (
