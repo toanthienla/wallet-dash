@@ -101,22 +101,13 @@ export default function TransactionQueuePage() {
         const messagesData = res.data?.data?.messages || [];
         const totalStats = res.data?.data?.total_statistic?.totalStats || {};
 
-        // Calculate stats from messages
-        const calculatedStats = {
-          pending: messagesData.filter((m) => m.msg_status === "pending").length,
-          processing: messagesData.filter(
-            (m) => m.msg_status === "processing"
-          ).length,
-          completed: messagesData.filter(
-            (m) => m.msg_status === "completed"
-          ).length,
-          cancelled: messagesData.filter(
-            (m) => m.msg_status === "cancelled"
-          ).length,
-        };
-
         setMessages(messagesData);
-        setStats(calculatedStats);
+        setStats({
+          pending: totalStats.pending ?? 0,
+          processing: totalStats.processing ?? 0,
+          completed: totalStats.completed ?? 0,
+          cancelled: totalStats.cancelled ?? 0,
+        });
       } catch (err: any) {
         console.error("❌ Error fetching transaction queue data:", err);
         setError(
