@@ -1,5 +1,6 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
+import axiosClient from "@/utils/axiosClient"
 
 type Tx = {
   id: string
@@ -80,6 +81,23 @@ export default function TransactionQueueTable({ loading = false }: { loading?: b
   const perPage = 10
   const pages = Math.ceil(mock.length / perPage)
   const visible = mock.slice((page - 1) * perPage, page * perPage)
+
+  const [apiLoading, setApiLoading] = useState(false)
+
+  useEffect(() => {
+    setApiLoading(true)
+    axiosClient
+      .get("/transaction/dashboard/queues")
+      .then((res) => {
+        console.log("API RES >>>", res.data)
+      })
+      .catch((err) => {
+        console.error("API ERR >>>", err)
+      })
+      .finally(() => {
+        setApiLoading(false)
+      })
+  }, [])
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
