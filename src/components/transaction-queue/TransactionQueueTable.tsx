@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useEffect } from "react"
 import axiosClient from "@/utils/axiosClient"
+import { API_URL } from "@/utils/constants";
 
 type Tx = {
   id: string
@@ -87,7 +88,7 @@ export default function TransactionQueueTable({ loading = false }: { loading?: b
   useEffect(() => {
     setApiLoading(true)
     axiosClient
-      .get("/transaction/dashboard/queues")
+      .get(`${API_URL}/transaction/dashboard/queues`)
       .then((res) => {
         console.log("API RES >>>", res.data)
       })
