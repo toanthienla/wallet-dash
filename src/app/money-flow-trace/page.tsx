@@ -337,8 +337,6 @@ export default function TransactionTracePage() {
       // Reset to page 1 after filtering
       setPage(1);
     } catch (error) {
-      window.alert("Search failed.");
-
       setTraces([]);
       setPagination({
         page: 1,
