@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -29,32 +29,37 @@ export default function StatisticsChart({ chartData: initialChartData, walletAdd
   const [toDate, setToDate] = useState("2025-11-25");
   const [loading, setLoading] = useState(false);
 
-  const fetchFilteredData = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosClient.get(`${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`, {
-        params: {
-          from_date: fromDate,
-          to_date: toDate,
-          interval,
-        },
-      });
+  // Fetch filtered data whenever interval, fromDate, or toDate changes
+  useEffect(() => {
+    const fetchFilteredData = async () => {
+      setLoading(true);
+      try {
+        const res = await axiosClient.get(`${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`, {
+          params: {
+            from_date: fromDate,
+            to_date: toDate,
+            interval,
+          },
+        });
 
-      const labels: string[] = res.data?.labels || [];
-      const values: number[] = res.data?.data?.[0]?.values || [];
+        const labels: string[] = res.data?.labels || [];
+        const values: number[] = res.data?.data?.[0]?.values || [];
 
-      const newChartData = labels.map((label, i) => ({
-        date: label,
-        balance: Number(values[i] ?? 0),
-      }));
+        const newChartData = labels.map((label, i) => ({
+          date: label,
+          balance: Number(values[i] ?? 0),
+        }));
 
-      setChartData(newChartData);
-    } catch (err) {
-      console.error("Error fetching filtered chart data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+        setChartData(newChartData);
+      } catch (err) {
+        console.error("Error fetching filtered chart data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFilteredData();
+  }, [interval, fromDate, toDate, walletAddress]);
 
   const tickFormatter = (iso: string) => {
     try {
@@ -113,35 +118,15 @@ export default function StatisticsChart({ chartData: initialChartData, walletAdd
               onChange={(e) => setToDate(e.target.value)}
             />
           </div>
-          <button
-            className="flex items-center px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition"
-            onClick={fetchFilteredData}
-            disabled={loading}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-refresh-cw"
-              aria-hidden="true"
-            >
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
-              <path d="M21 3v5h-5"></path>
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
-              <path d="M8 16H3v5"></path>
-            </svg>
-          </button>
         </div>
       </div>
 
       <div className="h-80">
-        {chartData && chartData.length > 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500">Loading...</p>
+          </div>
+        ) : chartData && chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid stroke="#F3F4F6" vertical={false} />
