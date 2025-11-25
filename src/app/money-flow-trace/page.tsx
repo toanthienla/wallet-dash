@@ -266,6 +266,97 @@ export default function TransactionTracePage() {
     }
   };
 
+  // Filter state
+  const [filters, setFilters] = useState({
+    transaction_id: "",
+    wallet_address: "",
+    from_date: "",
+    to_date: "",
+    min_range: "",
+    max_range: "",
+  });
+  const [isTracing, setIsTracing] = useState(false);
+
+  // Handle filter input changes
+  const handleFilterChange = (field: string, value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  // Handle trace search with filters
+  const handleTraceSearch = async () => {
+    try {
+      setIsTracing(true);
+      setLoadingTraces(true);
+
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append("page", "1");
+      params.append("take", perPage.toString());
+
+      // Add filters if they have values
+      if (filters.transaction_id) {
+        params.append("transaction_id", filters.transaction_id);
+      }
+      if (filters.wallet_address) {
+        params.append("wallet_address", filters.wallet_address);
+      }
+      if (filters.from_date) {
+        params.append("from_date", filters.from_date);
+      }
+      if (filters.to_date) {
+        params.append("to_date", filters.to_date);
+      }
+      if (filters.min_range) {
+        params.append("min_range", filters.min_range);
+      }
+      if (filters.max_range) {
+        params.append("max_range", filters.max_range);
+      }
+
+      const response = await axiosClient.get(
+        `${API_URL}/transaction/dashboard/traces?${params.toString()}`
+      );
+
+      const data = response.data?.data || {};
+      const tracesData = data.traces || [];
+      const paginationData = data.paginated;
+
+      setTraces(tracesData);
+      setPagination({
+        page: paginationData?.page || 1,
+        pages: paginationData?.pages || 1,
+        take: paginationData?.take || perPage,
+        number_records: paginationData?.number_records || tracesData.length,
+        has_next: paginationData?.has_next || false,
+        has_prev: paginationData?.has_prev || false,
+      });
+
+      // Reset to page 1 after filtering
+      setPage(1);
+    } catch (error) {
+      console.error("❌ Error tracing transactions:", error);
+      setTraces([]);
+    } finally {
+      setIsTracing(false);
+      setLoadingTraces(false);
+    }
+  };
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setFilters({
+      transaction_id: "",
+      wallet_address: "",
+      from_date: "",
+      to_date: "",
+      min_range: "",
+      max_range: "",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <div className="flex">
@@ -355,6 +446,8 @@ export default function TransactionTracePage() {
                     <input
                       type="text"
                       placeholder="Enter transaction ID"
+                      value={filters.transaction_id}
+                      onChange={(e) => handleFilterChange("transaction_id", e.target.value)}
                       className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
@@ -367,6 +460,8 @@ export default function TransactionTracePage() {
                     <input
                       type="text"
                       placeholder="Enter wallet address"
+                      value={filters.wallet_address}
+                      onChange={(e) => handleFilterChange("wallet_address", e.target.value)}
                       className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
@@ -378,8 +473,9 @@ export default function TransactionTracePage() {
                         Start Date
                       </label>
                       <input
-                        type="text"
-                        placeholder="dd/mm/yyyy"
+                        type="date"
+                        value={filters.from_date}
+                        onChange={(e) => handleFilterChange("from_date", e.target.value)}
                         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     </div>
@@ -388,8 +484,9 @@ export default function TransactionTracePage() {
                         End Date
                       </label>
                       <input
-                        type="text"
-                        placeholder="dd/mm/yyyy"
+                        type="date"
+                        value={filters.to_date}
+                        onChange={(e) => handleFilterChange("to_date", e.target.value)}
                         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     </div>
@@ -402,8 +499,10 @@ export default function TransactionTracePage() {
                         Amount Range
                       </label>
                       <input
-                        type="text"
+                        type="number"
                         placeholder="Min amount"
+                        value={filters.min_range}
+                        onChange={(e) => handleFilterChange("min_range", e.target.value)}
                         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     </div>
@@ -412,33 +511,60 @@ export default function TransactionTracePage() {
                         .
                       </label>
                       <input
-                        type="text"
+                        type="number"
                         placeholder="Max amount"
+                        value={filters.max_range}
+                        onChange={(e) => handleFilterChange("max_range", e.target.value)}
                         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white py-3 text-sm font-medium shadow transition-all duration-150"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleTraceSearch}
+                      disabled={isTracing}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-3 text-sm font-medium shadow transition-all duration-150"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M21 21l-4.35-4.35m2.85-4.15a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                    Start Trace
-                  </button>
+                      {isTracing ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Tracing...
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M21 21l-4.35-4.35m2.85-4.15a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                          Start Trace
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleClearFilters}
+                      disabled={isTracing}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:bg-gray-100 text-gray-700 px-6 py-3 text-sm font-medium transition-all duration-150"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
               </section>
             )}
