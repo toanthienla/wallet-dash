@@ -25,9 +25,32 @@ interface StatisticsChartProps {
 export default function StatisticsChart({ chartData: initialChartData, walletAddress }: StatisticsChartProps) {
   const [chartData, setChartData] = useState<ChartDataPoint[]>(initialChartData);
   const [interval, setInterval] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [fromDate, setFromDate] = useState("2025-11-24");
-  const [toDate, setToDate] = useState("2025-11-25");
+  const [fromDate, setFromDate] = useState(getInitialFromDate("daily"));
+  const [toDate, setToDate] = useState(getTodayDate());
   const [loading, setLoading] = useState(false);
+
+  // Helper functions to calculate dates
+  function getTodayDate(): string {
+    const today = new Date();
+    return today.toISOString().split("T")[0];
+  }
+
+  function getInitialFromDate(interval: "daily" | "weekly" | "monthly"): string {
+    const today = new Date();
+    if (interval === "daily") {
+      today.setDate(today.getDate() - 1);
+    } else if (interval === "weekly") {
+      today.setDate(today.getDate() - 7);
+    } else if (interval === "monthly") {
+      today.setMonth(today.getMonth() - 1);
+    }
+    return today.toISOString().split("T")[0];
+  }
+
+  // Update fromDate whenever interval changes
+  useEffect(() => {
+    setFromDate(getInitialFromDate(interval));
+  }, [interval]);
 
   // Fetch filtered data whenever interval, fromDate, or toDate changes
   useEffect(() => {
