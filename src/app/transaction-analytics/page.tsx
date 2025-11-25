@@ -159,8 +159,6 @@ function VolumeChart() {
 
         setChartData(formatted)
         setPnlPercent(json.pnl_percent || 0)
-      } else {
-        throw new Error("Unexpected response format")
       }
     } catch (err: any) {
       console.error("❌ Error fetching total assets:", err.response?.data || err.message)
