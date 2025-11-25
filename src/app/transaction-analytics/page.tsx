@@ -322,6 +322,30 @@ function VolumeChart() {
 }
 
 export default function TransactionAnalyticsAltPage({ loading = false }: { loading?: boolean }) {
+  const [statsData, setStatsData] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    const fetchStatsData = async () => {
+      try {
+        setLoadingStats(true);
+        const res = await axiosClient.get(`${API_URL}/transaction/dashboard/volume-statistics`);
+        if (res.data?.success) {
+          setStatsData(res.data.data || []);
+        } else {
+          setStatsData([]);
+        }
+      } catch (err) {
+        console.error("❌ Error fetching stats data:", err);
+        setStatsData([]);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    fetchStatsData();
+  }, []);
+
   return (
     <div className="p-6">
       {/* Transaction Volume Statistics Section */}
@@ -335,9 +359,9 @@ export default function TransactionAnalyticsAltPage({ loading = false }: { loadi
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <TopStats variant="fiat" />
-            <TopStats variant="crypto" />
-            <TopStats variant="points" />
+            {statsData.map((stat) => (
+              <TopStats key={stat.asset_type} variant={stat.asset_type} />
+            ))}
           </div>
         </div>
       )}
