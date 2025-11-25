@@ -24,9 +24,11 @@ interface StatisticsChartProps {
 
 export default function StatisticsChart({ chartData: initialChartData, walletAddress }: StatisticsChartProps) {
   const [chartData, setChartData] = useState<ChartDataPoint[]>(initialChartData);
-  const [interval, setInterval] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [fromDate, setFromDate] = useState(getInitialFromDate("daily"));
-  const [toDate, setToDate] = useState(getTodayDate());
+  const [filter, setFilter] = useState({
+    interval: "daily" as "daily" | "weekly" | "monthly",
+    fromDate: getInitialFromDate("daily"),
+    toDate: getTodayDate(),
+  });
   const [loading, setLoading] = useState(false);
 
   // Helper functions to calculate dates
@@ -47,21 +49,24 @@ export default function StatisticsChart({ chartData: initialChartData, walletAdd
     return today.toISOString().split("T")[0];
   }
 
-  // Update fromDate whenever interval changes
-  useEffect(() => {
-    setFromDate(getInitialFromDate(interval));
-  }, [interval]);
+  // Update filter state when interval changes
+  const handleIntervalChange = (newInterval: "daily" | "weekly" | "monthly") => {
+    setFilter({
+      ...filter,
+      interval: newInterval,
+      fromDate: getInitialFromDate(newInterval),
+    });
+  };
 
-  // Fetch filtered data whenever interval, fromDate, or toDate changes
+  // Fetch filtered data whenever filter changes
   useEffect(() => {
     const fetchFilteredData = async () => {
       setLoading(true);
       try {
         const res = await axiosClient.get(`${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`, {
           params: {
-            from_date: fromDate,
-            to_date: toDate,
-            interval,
+            from_date: filter.fromDate,
+            to_date: filter.toDate
           },
         });
 
@@ -82,7 +87,7 @@ export default function StatisticsChart({ chartData: initialChartData, walletAdd
     };
 
     fetchFilteredData();
-  }, [interval, fromDate, toDate, walletAddress]);
+  }, [filter, walletAddress]);
 
   const tickFormatter = (iso: string) => {
     try {
@@ -118,9 +123,9 @@ export default function StatisticsChart({ chartData: initialChartData, walletAdd
             {["daily", "weekly", "monthly"].map((int) => (
               <button
                 key={int}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${interval === int ? "text-gray-900 bg-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${filter.interval === int ? "text-gray-900 bg-white shadow-sm" : "text-gray-500 hover:text-gray-700"
                   }`}
-                onClick={() => setInterval(int as "daily" | "weekly" | "monthly")}
+                onClick={() => handleIntervalChange(int as "daily" | "weekly" | "monthly")}
               >
                 {int.charAt(0).toUpperCase() + int.slice(1)}
               </button>
@@ -130,15 +135,15 @@ export default function StatisticsChart({ chartData: initialChartData, walletAdd
             <input
               className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              value={filter.fromDate}
+              onChange={(e) => setFilter({ ...filter, fromDate: e.target.value })}
             />
             <span className="text-gray-400">-</span>
             <input
               className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              value={filter.toDate}
+              onChange={(e) => setFilter({ ...filter, toDate: e.target.value })}
             />
           </div>
         </div>
