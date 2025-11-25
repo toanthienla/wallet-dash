@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react";
 import { API_URL } from "@/utils/constants";
 import axiosClient from "@/utils/axiosClient";
 import {
@@ -11,48 +11,52 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-} from "recharts"
+} from "recharts";
 
 export default function VolumeChart() {
-  const [chartData, setChartData] = useState<any[]>([])
-  const [pnlPercent, setPnlPercent] = useState<number>(0)
-  const [loading, setLoading] = useState(true)
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [pnlPercent, setPnlPercent] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const url = `${API_URL}/transaction/dashboard/transaction-total-assets`
-        console.log("📡 Fetching total assets from:", url)
+        const url = `${API_URL}/transaction/dashboard/transaction-total-assets`;
+        console.log("📡 Fetching total assets from:", url);
 
-        const res = await axiosClient.get(url)
+        const res = await axiosClient.get(url);
 
-        console.log("✅ Fetched total assets:", res.data)
-        const json = res.data
+        console.log("✅ Fetched total assets:", res.data);
+        const json = res.data;
 
         if (json?.success && json?.data?.[0]?.values?.length) {
-          // ✅ Chuẩn hóa dữ liệu để hiển thị trên biểu đồ
+          // ✅ Format data for the chart
           const formatted = json.labels.map((label: string, i: number) => ({
             time: new Date(label).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
             }),
             value: json.data[0].values[i],
-          }))
+          }));
 
-          setChartData(formatted)
-          setPnlPercent(json.pnl_percent || 0)
+          setChartData(formatted);
+          setPnlPercent(json.pnl_percent || 0);
+        } else {
+          // If no data, set empty chart data
+          setChartData([]);
+          setPnlPercent(0);
         }
       } catch (err: any) {
-        console.error("❌ Error fetching total assets:", err.response?.data || err.message)
+        console.error("❌ Error fetching total assets:", err.response?.data || err.message);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
-  if (loading) return <div>Loading chart...</div>
+  if (loading) return <div>Loading chart...</div>;
 
   return (
     <div>
@@ -113,5 +117,5 @@ export default function VolumeChart() {
         </ResponsiveContainer>
       </div>
     </div>
-  )
+  );
 }
