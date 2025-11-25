@@ -337,8 +337,17 @@ export default function TransactionTracePage() {
       // Reset to page 1 after filtering
       setPage(1);
     } catch (error) {
-      console.error("❌ Error tracing transactions:", error);
+      window.alert("Search failed.");
+
       setTraces([]);
+      setPagination({
+        page: 1,
+        pages: 1,
+        take: 10,
+        number_records: 0,
+        has_next: false,
+        has_prev: false,
+      });
     } finally {
       setIsTracing(false);
       setLoadingTraces(false);
