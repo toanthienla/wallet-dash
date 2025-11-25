@@ -597,7 +597,7 @@ export default function WalletDetailPage() {
             </div>
 
             {/* Chart Section - Using StatisticsChart component, passing separate chartData */}
-            <StatisticsChart chartData={chartData} />
+            <StatisticsChart chartData={chartData} walletAddress={walletAddress} />
 
             {/* Assets Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

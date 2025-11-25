@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -9,39 +9,57 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
+import axiosClient from "@/utils/axiosClient";
+import { API_URL } from "@/utils/constants";
 
 interface ChartDataPoint {
-  // ISO timestamp string from the API (e.g. "2025-11-18T01:34:33.934Z")
   date: string;
   balance: number;
 }
 
 interface StatisticsChartProps {
   chartData: ChartDataPoint[];
+  walletAddress: string;
 }
 
-export default function StatisticsChart({ chartData }: StatisticsChartProps) {
-  // Format X axis ticks: time only if all points are on same day, otherwise show date + time.
+export default function StatisticsChart({ chartData: initialChartData, walletAddress }: StatisticsChartProps) {
+  const [chartData, setChartData] = useState<ChartDataPoint[]>(initialChartData);
+  const [interval, setInterval] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [fromDate, setFromDate] = useState("2025-11-24");
+  const [toDate, setToDate] = useState("2025-11-25");
+  const [loading, setLoading] = useState(false);
+
+  const fetchFilteredData = async () => {
+    setLoading(true);
+    try {
+      const res = await axiosClient.get(`${API_URL}/wallets/dashboard/statistic-total-assets/${walletAddress}`, {
+        params: {
+          from_date: fromDate,
+          to_date: toDate,
+          interval,
+        },
+      });
+
+      const labels: string[] = res.data?.labels || [];
+      const values: number[] = res.data?.data?.[0]?.values || [];
+
+      const newChartData = labels.map((label, i) => ({
+        date: label,
+        balance: Number(values[i] ?? 0),
+      }));
+
+      setChartData(newChartData);
+    } catch (err) {
+      console.error("Error fetching filtered chart data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tickFormatter = (iso: string) => {
     try {
       const d = new Date(iso);
-      if (!chartData || chartData.length === 0) return "";
-      const first = new Date(chartData[0].date);
-      const last = new Date(chartData[chartData.length - 1].date);
-      const sameDay =
-        first.getFullYear() === last.getFullYear() &&
-        first.getMonth() === last.getMonth() &&
-        first.getDate() === last.getDate();
-
-      if (sameDay) {
-        return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-      }
-      return d.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
     } catch {
       return iso;
     }
@@ -57,7 +75,6 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
   };
 
   const tooltipValueFormatter = (value: number) => {
-    if (typeof value !== "number") return String(value);
     return `$${value.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 6,
@@ -68,7 +85,59 @@ export default function StatisticsChart({ chartData }: StatisticsChartProps) {
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-gray-900">Statistics</h3>
-        {/* Minimal header as requested */}
+        <div className="flex items-center space-x-3 w-full sm:w-auto">
+          <div className="hidden sm:flex items-center bg-gray-50 rounded-lg p-1 gap-1">
+            {["daily", "weekly", "monthly"].map((int) => (
+              <button
+                key={int}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${interval === int ? "text-gray-900 bg-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                onClick={() => setInterval(int as "daily" | "weekly" | "monthly")}
+              >
+                {int.charAt(0).toUpperCase() + int.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center space-x-2 text-xs">
+            <input
+              className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+            <span className="text-gray-400">-</span>
+            <input
+              className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+          <button
+            className="flex items-center px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition"
+            onClick={fetchFilteredData}
+            disabled={loading}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-refresh-cw"
+              aria-hidden="true"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+              <path d="M21 3v5h-5"></path>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+              <path d="M8 16H3v5"></path>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="h-80">
